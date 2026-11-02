@@ -8,6 +8,7 @@ WHAT'S INCLUDED
 - Last completed study session, saved when Stop is pressed.
 - Study Start and Session Complete animations in OBS.
 - Automatic YouTube Now Playing metadata through a small Chrome/Edge extension.
+- Optional Twitch live-chat panel, configured from the control page.
 - Local Python server; no Flask, npm or third-party Python packages.
 
 REQUIREMENTS
@@ -28,6 +29,12 @@ ADD THE OBS OVERLAY
 3. Width: 1920; Height: 1080.
 4. Keep one Browser Source and reuse it across scenes.
 
+TWITCH CHAT PANEL
+1. Open the control panel and enter your Twitch channel username in the Twitch chat section.
+2. Click Save chat channel. The overlay will display the channel chat at the bottom-right.
+3. Leave the field blank and save to hide the chat panel.
+4. The panel uses Twitch's official embedded-chat URL and requires the OBS Browser Source page to use the local address shown below.
+
 AUTOMATIC YOUTUBE NOW PLAYING
 1. With the server running, open youtube_now_playing_extension inside the extracted project folder.
 2. In Chrome, visit chrome://extensions. In Edge, visit edge://extensions.
@@ -37,9 +44,9 @@ AUTOMATIC YOUTUBE NOW PLAYING
 6. The overlay reads the video title and channel automatically.
 
 STUDY SESSION CONTROLS
-- Start studying: starts/resumes the stopwatch. Starting from zero triggers the start animation.
+- Start studying: starts/resumes the stopwatch and triggers the distinct “Study session started” animation.
 - Pause: pauses the current session without saving it as completed.
-- Stop session: saves the subject, task, duration and completion time as Last study session, resets the active stopwatch and triggers the completion animation.
+- Stop session: saves the subject, task, duration and completion time as Last study session, resets the active stopwatch and triggers the separate “Well done. Session saved.” completion animation.
 - Reset timer: clears the active timer without saving a completed session.
 
 TROUBLESHOOTING

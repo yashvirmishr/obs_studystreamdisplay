@@ -1,7 +1,7 @@
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
-import json, os, threading, webbrowser
+import json, os, re, threading, webbrowser
 
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "study_state.json"
@@ -12,7 +12,7 @@ DEFAULT_STATE = {
     "accumulatedMs": 0, "startedAt": None, "running": False,
     "musicTitle": "", "musicArtist": "", "showMusic": True,
     "musicPlaying": False, "lastSession": None, "animation": None,
-    "animationId": 0
+    "animationId": 0, "twitchChannel": ""
 }
 
 
@@ -35,6 +35,8 @@ def write_state(data):
     clean["running"] = bool(clean.get("running"))
     clean["musicTitle"] = str(clean.get("musicTitle") or "")[:120]
     clean["musicArtist"] = str(clean.get("musicArtist") or "")[:100]
+    channel = str(clean.get("twitchChannel") or "").strip().lower()
+    clean["twitchChannel"] = channel if re.fullmatch(r"[a-z0-9_]{1,25}", channel) else ""
     clean["showMusic"] = bool(clean.get("showMusic", True))
     clean["musicPlaying"] = bool(clean.get("musicPlaying"))
     clean["animationId"] = max(0, int(clean.get("animationId") or 0))
@@ -42,7 +44,7 @@ def write_state(data):
         clean["startedAt"] = int(clean["startedAt"])
     if not isinstance(clean.get("lastSession"), (dict, type(None))):
         clean["lastSession"] = None
-    if not isinstance(clean.get("animation"), (dict, type(None))):
+    if clean.get("animation") not in ("start", "stop", None):
         clean["animation"] = None
     tmp = STATE_FILE.with_suffix('.tmp')
     with tmp.open('w', encoding='utf-8') as f:
