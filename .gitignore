@@ -1,0 +1,14 @@
+# Runtime state rolling files
+study_state.json.tmp
+study_state.tmp
+
+# OS / tooling junk
+Thumbs.db
+desktop.ini
+.DS_Store
+__pycache__/
+*.pyc
+*.tmp
+
+# Design asset intentionally kept out of the repo
+Lo-fi Night Study_ Please Wait.png
