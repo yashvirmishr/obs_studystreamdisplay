@@ -1,0 +1,16 @@
+{
+  "subject": "HL Chemistry",
+  "task": "Organic chemistry",
+  "accumulatedMs": 0,
+  "startedAt": null,
+  "running": false,
+  "musicTitle": "",
+  "musicArtist": "",
+  "showMusic": true,
+  "musicPlaying": false,
+  "lastSession": null,
+  "animation": null,
+  "animationId": 0,
+  "twitchChannel": "",
+  "kickChannel": ""
+}
