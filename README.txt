@@ -62,12 +62,17 @@ MUSIC RIGHTS
 The extension reads only public title/channel metadata. It does not grant rights to broadcast music. Ensure the music is licensed for Twitch livestreams and VODs; a YouTube or YouTube Premium subscription alone does not grant those rights.
 
 PLEASE WAIT SCENE (CHAT + NOW PLAYING ONLY)
+UPDATE ONLY THE PLEASE WAIT DESIGN
+- To apply the matching-chat update to an existing setup, extract this ZIP to a temporary folder and copy only study_status_overlay/wait.html into your existing project folder, replacing the old wait.html.
+- Do not replace study_state.json or the rest of your project. This keeps your saved Twitch/Kick channel names, session history and extension settings intact.
+- In OBS, right-click the Please Wait Browser Source and choose Refresh. The Python server does not need to be restarted for this HTML-only change.
+
 1. Keep the same Python server running. No second server is needed.
 2. In OBS, create or select your "Please Wait" scene.
 3. Add a new Browser source and name it "Please Wait Overlay".
 4. Set URL to: http://127.0.0.1:8765/wait.html
 5. Set Width to 1920 and Height to 1080.
-6. The wait layout shows only the combined live chat on the right and the YouTube Now Playing card at the top-left. The study timer, subject/task, clock, last session and start/stop animations are not shown.
+6. The wait layout reuses the exact same combined chat feed, card size, position, header and styling as the main study overlay (bottom-right, 340 x 430 px). Only the YouTube Now Playing card is moved to the top-left. The study timer, subject/task, clock, last session and start/stop animations are not shown.
 7. Keep your regular Study Overlay Browser Source in your study scene. Do not replace it; both pages read the same server state and update independently.
 8. Configure Twitch and Kick channel names in the control panel as usual. The YouTube browser extension must remain enabled for the Now Playing card to update.
 9. If you want a background or "Please wait" text, add those as separate OBS sources underneath the Browser source.
