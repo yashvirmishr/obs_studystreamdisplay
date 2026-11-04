@@ -16,12 +16,21 @@
 
     * { box-sizing: border-box; }
 
-    html, body {
+    html {
       width: 100%;
       height: 100%;
       margin: 0;
       overflow: hidden;
       background: transparent;
+    }
+
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      /* Match the subtle green tint used by the main study overlay. */
+      background: rgba(19, 26, 23, .42);
       color: var(--text);
       font-family: Inter, "Segoe UI", Arial, sans-serif;
     }
