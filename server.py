@@ -12,7 +12,7 @@ DEFAULT_STATE = {
     "accumulatedMs": 0, "startedAt": None, "running": False,
     "musicTitle": "", "musicArtist": "", "showMusic": True,
     "musicPlaying": False, "lastSession": None, "animation": None,
-    "animationId": 0, "twitchChannel": ""
+    "animationId": 0, "twitchChannel": "", "kickChannel": ""
 }
 
 
@@ -37,6 +37,8 @@ def write_state(data):
     clean["musicArtist"] = str(clean.get("musicArtist") or "")[:100]
     channel = str(clean.get("twitchChannel") or "").strip().lower()
     clean["twitchChannel"] = channel if re.fullmatch(r"[a-z0-9_]{1,25}", channel) else ""
+    kick_channel = str(clean.get("kickChannel") or "").strip().lower()
+    clean["kickChannel"] = kick_channel if re.fullmatch(r"[a-z0-9_.-]{1,64}", kick_channel) else ""
     clean["showMusic"] = bool(clean.get("showMusic", True))
     clean["musicPlaying"] = bool(clean.get("musicPlaying"))
     clean["animationId"] = max(0, int(clean.get("animationId") or 0))

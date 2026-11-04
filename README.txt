@@ -8,7 +8,7 @@ WHAT'S INCLUDED
 - Last completed study session, saved when Stop is pressed.
 - Study Start and Session Complete animations in OBS.
 - Automatic YouTube Now Playing metadata through a small Chrome/Edge extension.
-- Optional Twitch live-chat panel, configured from the control page.
+- Combined Twitch + Kick live-chat feed, configured from the control page.
 - Local Python server; no Flask, npm or third-party Python packages.
 
 REQUIREMENTS
@@ -29,11 +29,12 @@ ADD THE OBS OVERLAY
 3. Width: 1920; Height: 1080.
 4. Keep one Browser Source and reuse it across scenes.
 
-TWITCH CHAT PANEL
-1. Open the control panel and enter your Twitch channel username in the Twitch chat section.
-2. Click Save chat channel. The overlay will display the channel chat at the bottom-right.
-3. Leave the field blank and save to hide the chat panel.
-4. The panel uses Twitch's official embedded-chat URL and requires the OBS Browser Source page to use the local address shown below.
+COMBINED TWITCH + KICK CHAT
+1. Open the control panel and enter your Twitch channel name, Kick channel name, or both.
+2. Click Save chat channels. The overlay combines incoming messages into one feed and labels each platform.
+3. Leave both fields blank and save to hide the chat panel.
+4. The combined feed is provided by Unified Chat Lite (unified-chat.com), a third-party, read-only service. The overlay cannot send messages or moderate chat. The service's published project information describes it as a no-login viewer and says chat data is held in memory; review its current privacy information before relying on it.
+5. The OBS chat card loads the third-party feed inside the existing local overlay. An internet connection is required for the feed to appear.
 
 AUTOMATIC YOUTUBE NOW PLAYING
 1. With the server running, open youtube_now_playing_extension inside the extracted project folder.
