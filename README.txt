@@ -60,3 +60,14 @@ TROUBLESHOOTING
 
 MUSIC RIGHTS
 The extension reads only public title/channel metadata. It does not grant rights to broadcast music. Ensure the music is licensed for Twitch livestreams and VODs; a YouTube or YouTube Premium subscription alone does not grant those rights.
+
+PLEASE WAIT SCENE (CHAT + NOW PLAYING ONLY)
+1. Keep the same Python server running. No second server is needed.
+2. In OBS, create or select your "Please Wait" scene.
+3. Add a new Browser source and name it "Please Wait Overlay".
+4. Set URL to: http://127.0.0.1:8765/wait.html
+5. Set Width to 1920 and Height to 1080.
+6. The wait layout shows only the combined live chat on the right and the YouTube Now Playing card at the top-left. The study timer, subject/task, clock, last session and start/stop animations are not shown.
+7. Keep your regular Study Overlay Browser Source in your study scene. Do not replace it; both pages read the same server state and update independently.
+8. Configure Twitch and Kick channel names in the control panel as usual. The YouTube browser extension must remain enabled for the Now Playing card to update.
+9. If you want a background or "Please wait" text, add those as separate OBS sources underneath the Browser source.
