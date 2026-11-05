@@ -35,15 +35,13 @@ overlay.html        OBS overlay (also serves ?mode=wait)
 wait.html           Redirect stub to overlay.html?mode=wait
 study_state.json    Runtime state (committed copy holds the app defaults)
 youtube_now_playing_extension/   Chrome/Edge extension
-versions/           Every draft archived as-distributed, plus its original
-                    download ZIP (zips/)
 ```
 
 ## Development history
 One commit per draft, in order; commit dates are restored from the
 original draft ZIP timestamps. The root files are the latest draft.
 
-| Commit | Draft (archived under `versions/`) |
+| Commit | Draft |
 |---|---|
 | 1. First draft | `study_status_overlay` |
 | 2. Session lifecycle, animations, YouTube Now Playing + extension | `study_status_overlay_updated` |
@@ -54,6 +52,9 @@ original draft ZIP timestamps. The root files are the latest draft.
 | 7. Wait-screen chat card aligned with the main overlay | `study_status_overlay_wait_same_chat` |
 | 8. Green background tint on the wait screen | `study_status_overlay_wait_green_background` |
 | 9. One shared overlay implementation for both scenes | `obs_shared_chat_fix_download` |
+
+Every draft stays fully readable as its own commit — open any commit in
+GitHub's history (or `git show <hash>`) to see that stage of the app.
 
 ## Notes
 - `study_state.json` is runtime data (subject, timer state, chat channels).
