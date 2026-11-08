@@ -14,7 +14,7 @@ DEFAULT_STATE = {
     "musicTitle": "", "musicArtist": "", "showMusic": True,
     "musicPlaying": False, "lastSession": None, "animation": None,
     "animationId": 0, "twitchChannel": "", "kickChannel": "",
-    "timezone": "Asia/Singapore", "locale": "en-SG"
+    "timezone": "Asia/Singapore", "locale": "en-SG", "sessionLog": []
 }
 
 
@@ -48,6 +48,26 @@ def write_state(data):
         clean["startedAt"] = int(clean["startedAt"])
     if not isinstance(clean.get("lastSession"), (dict, type(None))):
         clean["lastSession"] = None
+    def _ms(value):
+        try:
+            return max(0, int(value or 0))
+        except (ValueError, TypeError):
+            return 0
+    log = clean.get("sessionLog")
+    if not isinstance(log, list):
+        log = []
+    clean_log = []
+    for entry in log[-30:]:
+        if not isinstance(entry, dict):
+            continue
+        clean_log.append({
+            "subject": str(entry.get("subject") or "")[:60],
+            "task": str(entry.get("task") or "")[:100],
+            "durationMs": _ms(entry.get("durationMs")),
+            "endedAt": str(entry.get("endedAt") or "")[:32],
+            "endedLabel": str(entry.get("endedLabel") or "")[:64],
+        })
+    clean["sessionLog"] = clean_log
     if clean.get("animation") not in ("start", "stop", None):
         clean["animation"] = None
     tz_value = str(clean.get("timezone") or "").strip()[:64] or "Asia/Singapore"
