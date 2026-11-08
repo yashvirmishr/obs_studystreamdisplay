@@ -1,0 +1,118 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OBS Layout Editor - Study Stream Display</title>
+<style>
+:root{color-scheme:dark;--bg:#111714;--panel:#1b2420;--line:#34433a;--text:#f1f4f0;--muted:#a6b9ab;--accent:#91cba5}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif}
+.kicker{color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:1240px;margin:0 auto;padding:26px 20px 6px}
+h1{margin:6px 0 2px;font-size:26px;letter-spacing:-.03em}
+.hint{color:var(--muted);font-size:12px;line-height:1.55;margin:4px 0}
+a.menu{color:var(--accent);font-weight:700;font-size:12px;text-decoration:none;border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.wrap{max-width:1240px;margin:14px auto 30px;padding:0 20px;display:grid;grid-template-columns:330px 1fr;gap:16px}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:18px}
+.card h2{margin:0 0 10px;font-size:15px}
+label{display:block;color:var(--muted);font-size:12px;font-weight:650;margin:10px 0 6px}
+select,input{display:block;width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#111714;color:var(--text);font:inherit;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=checkbox]{width:auto;display:inline}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{border:0;border-radius:9px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:var(--accent);color:#142019}
+.secondary{background:#2a3730;color:var(--text);border:1px solid var(--line)}
+.danger{background:#402b2b;color:#f1caca;border:1px solid #674141}
+.saved{min-height:17px;margin-top:9px;color:var(--accent);font-size:12px}
+.dirty{color:#f1c001;font-size:12px;min-height:18px}
+.linkrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
+.linkrow:last-child{border-bottom:0}
+.linkrow .url{color:#b8dcc3;font-family:Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
+.linkrow button{padding:6px 10px;font-size:11px}
+.stage{border:1px solid var(--line);border-radius:16px;background:#0d1210;padding:18px}
+.canvas{position:relative;width:100%;max-width:1000px;margin:0 auto;aspect-ratio:16/9;border-radius:10px;background:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);background-size:26px 26px;overflow:hidden;touch-action:none}
+.rep{position:absolute;border:1px solid rgba(202,220,207,.18);border-radius:12px;background:rgba(19,26,23,.94);box-shadow:0 8px 22px rgba(0,0,0,.25);cursor:grab}
+.rep.selected{outline:2px dashed rgba(145,203,165,.8);outline-offset:2px;cursor:grabbing}
+.rep.dragging{opacity:.92}
+.hd{position:absolute;right:2px;bottom:2px;width:15px;height:15px;border-radius:4px;background:rgba(145,203,165,.55);cursor:nwse-resize}
+.hiddenrep{opacity:.38;border-style:dashed}
+.rp-panel{display:flex;flex-direction:column;padding:10px 12px}
+.rp-row{display:flex;justify-content:space-between;gap:8px;align-items:flex-end}
+.rp-eyebrow{color:var(--muted);font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.rp-clock{margin-top:2px;font-size:15px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.rp-status{border-radius:99px;padding:4px 7px;background:rgba(145,203,165,.13);color:#b8dcc3;font-size:7px;font-weight:800;white-space:nowrap}
+.rp-subject{margin-top:7px;font-size:10px;font-weight:700;overflow-wrap:anywhere}
+.rp-task{margin-top:3px;color:#b3bdb6;font-size:8px;overflow-wrap:anywhere}
+.rp-elapsed{margin-top:7px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.rp-rule{height:1px;background:rgba(202,220,207,.16);margin:8px 0}
+.rp-last{margin-top:8px;padding-top:7px;border-top:1px dashed rgba(202,220,207,.2)}
+.rp-line{margin-top:3px;color:#dce5de;font-size:8px}
+.rp-music{display:flex;align-items:center;gap:8px;padding:9px 11px}
+.rp-mark{width:20px;height:15px;flex:0 0 auto;border-radius:5px;background:#ef4444;display:grid;place-items:center;color:#fff;font-size:8px}
+.rp-title{margin-top:3px;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.rp-artist{margin-top:2px;color:#b3bdb6;font-size:8px}
+.rp-chat{display:flex;flex-direction:column;padding:0}
+.rp-chathead{height:22px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;border-bottom:1px solid rgba(202,220,207,.16);color:var(--muted);font-size:7px;font-weight:800;letter-spacing:.12em}
+.rp-chatbody{flex:1;padding:7px 9px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.rp-msg{background:rgba(255,255,255,.05);border-radius:7px;padding:4px 7px;font-size:8px;color:#dce5de}
+.rp-msg b{color:#b8dcc3;font-size:7px;letter-spacing:.06em;margin-right:4px}
+</style></head><body>
+<div class="topbar"><div><div class="kicker">OBS layout editor</div><h1>Arrange your overlay</h1><p class="hint">Drag the cards inside the 16:9 stage to design an arrangement, then save it as a profile. Each profile gets its own OBS browser-source link. Positions are percentages of the source, so they hold at any OBS size.</p></div><div style="text-align:right"><a class="menu" href="/control.html">Control panel</a></div></div>
+<div class="wrap">
+<aside>
+  <section class="card"><h2>Profiles</h2><label for="profileSel">Editing profile</label><select id="profileSel"></select><div class="btnrow"><button class="secondary" id="newProfile">New profile</button><button class="danger" id="delProfile">Delete profile</button></div><p class="hint">A profile stores the position, size and visibility of every card. Deleting always keeps at least one profile.</p></section>
+  <section class="card"><h2>Scene defaults</h2><label for="sceneStudy">Study scene uses</label><select id="sceneStudy"></select><label for="sceneWait">Please Wait scene uses</label><select id="sceneWait"></select><p class="hint">Scene defaults apply when the OBS URL has no <b>?layout=</b> parameter.</p></section>
+  <section class="card"><h2>Selected card</h2><label for="cardSel">Card</label><select id="cardSel"><option value="panel">Study dashboard</option><option value="music">YouTube Now Playing</option><option value="chat">Combined chat</option></select><label style="display:flex;align-items:center;gap:7px;margin:12px 0 2px"><input type="checkbox" id="showCard">Show this card</label><label style="display:flex;align-items:center;gap:7px;margin:2px 0"><input type="checkbox" id="showLast">Show last-session block (in dashboard)</label><label for="posX">Left edge (%)</label><input id="posX" type="number" min="0" max="100" step="0.25"><label for="posY">Top edge (%)</label><input id="posY" type="number" min="0" max="100" step="0.25"><label for="posW">Width (%)</label><input id="posW" type="number" min="8" max="90" step="0.25"><span id="hWrap"><label for="posH">Height (% - chat only)</label><input id="posH" type="number" min="10" max="95" step="0.25"></span><div class="btnrow"><button class="secondary" id="frameBtn">Snap to full width</button></div><p class="hint">Click a card on the stage to select it. Drag its green corner to resize.</p></section>
+  <section class="card"><h2>OBS links</h2><div id="linkList"></div><p class="hint">Copy a link into an OBS Browser source (1920 x 1080 recommended). The “Please wait” link hides the study dashboard but keeps every other card.</p></section>
+</aside>
+<main>
+  <section class="card stage">
+    <div class="topbar" style="max-width:none;padding:0 4px 12px"><div class="kicker">Stage - drag to arrange</div><div style="display:flex;gap:10px;align-items:center"><span class="dirty" id="dirtyFlag"></span><button class="primary" id="saveBtn">Save layout</button></div></div>
+    <div class="canvas" id="canvas">
+      <div class="rep rp-panel" data-card="panel" id="rep-panel"></div>
+      <div class="rep rp-music" data-card="music" id="rep-music"></div>
+      <div class="rep rp-chat" data-card="chat" id="rep-chat"></div>
+    </div>
+    <div class="hint">Changes only reach the stream after <b>Save layout</b>. The overlay re-reads its profile automatically about once a second, so OBS sources pick saved changes up without a refresh.</div>
+  </section>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let state={},layouts={},scenes={study:'study',wait:'wait'},current=null,selected='panel',dirty=false;
+const BASE={panel:{on:true,x:75.1,y:3.9,w:22.4},music:{on:true,x:2.5,y:90.2,w:19.0},chat:{on:true,x:75.5,y:56.2,w:17.7,h:39.8},last:true};
+function slugify(s){return String(s||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,24)}
+function deep(o){return JSON.parse(JSON.stringify(o))}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function profNames(){return Object.keys(layouts)}
+function cur(){return layouts[current]||{}}
+function cardCfg(){const c=cur();return selected==='panel'?c.panel:selected==='music'?c.music:c.chat}
+async function load(){const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error('offline');state={...await r.json()};layouts=deep(state.layouts||{});if(!Object.keys(layouts).length)layouts={study:deep(BASE)};scenes=deep(state.sceneLayouts||{study:'study',wait:'wait'});if(!layouts[scenes.study])scenes.study=profNames()[0];if(!layouts[scenes.wait])scenes.wait=profNames()[0];current=profNames()[0];markDirty(false);buildProfileList();selected='panel';$('cardSel').value=selected;renderAll();renderProps();renderLinks()}
+function buildProfileList(){const names=profNames();$('profileSel').innerHTML=names.map(n=>`<option ${n===current?'selected':''}>${esc(n)}</option>`).join('');[['sceneStudy','study'],['sceneWait','wait']].forEach(([id,key])=>{$(id).innerHTML=names.map(n=>`<option ${scenes[key]===n?'selected':''}>${esc(n)}</option>`).join('')})}
+$('profileSel').onchange=()=>{if(dirty&&!confirm('Discard unsaved layout changes?')){$('profileSel').value=current;return}current=$('profileSel').value;markDirty(false);buildProfileList();renderAll();renderProps();renderLinks()};
+[['sceneStudy','study'],['sceneWait','wait']].forEach(([id,key])=>{ $(id).onchange=()=>{scenes[key]=$(id).value;markDirty(true);renderLinks()}});
+$('cardSel').onchange=()=>{selected=$('cardSel').value;renderAll();renderProps()};
+function renderAll(){renderPanel();renderMusic();renderChat();positionCards();attachCards()}
+function repEl(name){return document.querySelector('.rep[data-card="'+name+'"]')}
+function renderPanel(){const c=cur();const el=repEl('panel');el.className='rep rp-panel'+(c.panel&&c.panel.on?'':' hiddenrep')+(selected==='panel'?' selected':'');el.innerHTML=`<div class="rp-row"><div><div class="rp-eyebrow">Current local time${state.timezone&&state.timezone!=='auto'?' · '+esc(String(state.timezone).split('/').pop().replace('_',' ')):''}</div><div class="rp-clock">--:--:--</div></div><div class="rp-status">READY</div></div><div class="rp-rule"></div><div class="rp-eyebrow">Currently studying</div><div class="rp-subject">${esc(state.subject||'')}</div><div class="rp-task">${esc(state.task||'')}</div><div class="rp-rule"></div><div class="rp-row"><div><div class="rp-eyebrow">Time studied</div><div class="rp-elapsed">00:00:00</div></div><div class="rp-eyebrow">FOCUS SESSION</div></div>${c.last!==false?`<div class="rp-last"><div class="rp-eyebrow">Last study session</div><div class="rp-line">${esc((state.lastSession&&state.lastSession.subject)||'No completed session yet')}</div></div>`:''}`}
+function renderMusic(){const c=cur();const el=repEl('music');el.className='rep rp-music'+(c.music&&c.music.on?'':' hiddenrep')+(selected==='music'?' selected':'');el.innerHTML=`<div class="rp-mark">▶</div><div><div class="rp-eyebrow">Now playing · YouTube</div><div class="rp-title">${esc(state.musicTitle||'Waiting for the browser extension…')}</div><div class="rp-artist">${esc(state.musicArtist||'')}</div></div><div class="hd"></div>`}
+function renderChat(){const c=cur();const el=repEl('chat');el.className='rep rp-chat'+(c.chat&&c.chat.on?'':' hiddenrep')+(selected==='chat'?' selected':'');const channels=[state.twitchChannel?'TWITCH':'',state.kickChannel?'KICK':''].filter(Boolean).join(' + ⇒')||'TWITCH + KICK';el.innerHTML=`<div class="rp-chathead"><span>LIVE CHAT</span><span>${esc(channels)}</span></div><div class="rp-chatbody"><div class="rp-msg"><b>TWITCH</b>Welcome back to the study stream!</div><div class="rp-msg"><b>KICK</b>what subject is it today?</div><div class="rp-msg"><b>TWITCH</b>good luck on the paper 💪</div><div class="rp-msg"><b>KICK</b>staying for the timed sessions</div></div><div class="hd"></div>`}
+function positionCards(){const c=cur();[['panel',false],['music',false],['chat',true]].forEach(([name,isChat])=>{const el=repEl(name);const cfg=c[name];if(!el||!cfg)return;el.style.left=cfg.x+'%';el.style.top=cfg.y+'%';el.style.width=cfg.w+'%';if(isChat&&cfg.h!=null)el.style.height=cfg.h+'%';el.style.removeProperty('right');el.style.removeProperty('bottom')})}
+function attachCards(){['panel','music','chat'].forEach(name=>{const el=repEl(name);if(!el)return;el.onpointerdown=e=>{if(e.target.classList.contains('hd')){startResize(e,name);return}startDrag(e,name)}})}
+function estHeight(el){const canvas=$('canvas');return el.getBoundingClientRect().height/canvas.getBoundingClientRect().height*100}
+function markDirty(v){dirty=v;$('dirtyFlag').textContent=v?'Unsaved changes - press Save layout':''}
+function syncNumInputs(){const c=cardCfg();if(!c)return;$('posX').value=c.x;$('posY').value=c.y;$('posW').value=c.w;$('hWrap').style.display=selected==='chat'?'':'none';if(selected==='chat')$('posH').value=c.h!=null?c.h:'';$('showLast').checked=c.last!==false;$('showCard').checked=!!c.on}
+function renderProps(){syncNumInputs()}
+[{id:'posX',key:'x',clamp:[0,100]},{id:'posY',key:'y',clamp:[0,100]},{id:'posW',key:'w',clamp:[8,90]},{id:'posH',key:'h',clamp:[10,95]}].forEach(({id,key,clamp})=>{$(id).addEventListener('input',()=>{const c=cardCfg();if(!c)return;if(selected!=='chat'&&key==='h')return;let v=parseFloat($(id).value);if(isNaN(v))return;c[key]=Math.round(Math.max(clamp[0],Math.min(clamp[1],v))*4)/4;markDirty(true);positionCards();renderPanel();renderMusic();renderChat()})});
+$('showCard').addEventListener('change',()=>{const c=cardCfg();if(!c)return;c.on=$('showCard').checked;markDirty(true);renderAll()});
+$('frameBtn').onclick=()=>{const c=cardCfg();if(!c)return;c.x=0;c.w=100;markDirty(true);positionCards();renderAll();syncNumInputs()};
+$('showLast')&&($('showLast').addEventListener('change',()=>{const c=cur();if(!c)return;c.last=$('showLast').checked;markDirty(true);renderPanel()}));
+function startDrag(e,name){selectOne(name);const canvas=$('canvas');const rect=canvas.getBoundingClientRect();const cfg=cur()[name];const sx=e.clientX,sy=e.clientY;const ox=cfg.x,oy=cfg.y;const el=repEl(name);el.classList.add('dragging');const move=ev=>{const dx=(ev.clientX-sx)/rect.width*100,dy=(ev.clientY-sy)/rect.height*100;cfg.x=Math.round(Math.max(0,Math.min(100-cfg.w,ox+dx))*4)/4;cfg.y=Math.round(Math.max(0,Math.min(100-estHeight(el),oy+dy))*4)/4;positionCards();syncNumInputs();markDirty(true)};const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);el.classList.remove('dragging')};document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);e.preventDefault()}
+function startResize(e,name){selectOne(name);const canvas=$('canvas');const rect=canvas.getBoundingClientRect();const cfg=cur()[name];const isChat=name==='chat';const sx=e.clientX,sy=e.clientY;const sw=cfg.w,sh=cfg.h||0;const move=ev=>{cfg.w=Math.round(Math.max(8,Math.min(90,sw+(ev.clientX-sx)/rect.width*100))*4)/4;if(isChat)cfg.h=Math.round(Math.max(10,Math.min(95,sh+(ev.clientY-sy)/rect.height*100))*4)/4;positionCards();syncNumInputs();markDirty(true)};const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up)};document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);e.preventDefault()}
+function selectOne(name){if(selected===name)return;selected=name;$('cardSel').value=name;renderAll();syncNumInputs()}
+$('newProfile').onclick=()=>{const slug=slugify(prompt('New profile name (letters, numbers, _ or -):'));if(!slug)return;if(layouts[slug]){alert('A profile with that name already exists.');return}layouts[slug]=deep(cur());current=slug;markDirty(true);buildProfileList();renderAll();renderProps();renderLinks()};
+$('delProfile').onclick=()=>{if(profNames().length<=1){alert('At least one profile must exist.');return}if(!confirm(`Delete profile "${current}"?`))return;if(dirty&&!confirm('Doing this discards unsaved changes. Continue?'))return;delete layouts[current];const names=profNames();[['study','sceneStudy'],['wait','sceneWait']].forEach(([key,id])=>{if(scenes[key]===current||!layouts[scenes[key]]){scenes[key]=names[0];$(id).value=names[0]}});current=names[0];markDirty(true);buildProfileList();renderAll();renderProps();renderLinks()};
+$('saveBtn').onclick=async()=>{try{const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({layouts:layouts,sceneLayouts:scenes})});if(!r.ok)throw Error('save failed');const next={...await r.json()};layouts=deep(next.layouts||{});scenes=deep(next.sceneLayouts||{study:'study',wait:'wait'});if(!layouts[current])current=profNames()[0];state=next;markDirty(false);buildProfileList();renderAll();renderProps();renderLinks();note('Saved. OBS links updated below.')}catch{note('Could not save - is the server window open?')}};
+function profileLinks(name){return [['Dashboard view','/overlay.html?layout='+name],['Please wait view','/overlay.html?mode=wait&layout='+name]]}
+function renderLinks(){const wrap=$('linkList');const origin=window.location.origin;let html='';profNames().forEach(n=>{const badge=(scenes.study===n?' · study default':'')+(scenes.wait===n?' · wait default':' '');html+=`<div class="kicker" style="margin-top:9px">${esc(n)}${esc(badge)}</div>`;profileLinks(n).forEach(([label,url])=>{html+=`<div class="linkrow"><span>${label}</span><span class="url">${esc(url)}</span><span style="display:flex;gap:6px;flex:0 0 auto"><button class="secondary" data-copy="${esc(origin+url)}">Copy</button><a class="secondary" href="${esc(origin+url)}" target="_blank" style="padding:6px 10px;font-size:11px;font-weight:700;text-decoration:none">Open</a></span></div>`})});wrap.innerHTML=html||'<div class="hint">No profiles yet.</div>';wrap.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{const v=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).catch(()=>{prompt('Copy this OBS link:',v)})})}
+function note(msg){$('dirtyFlag').textContent=msg;setTimeout(()=>{$('dirtyFlag').textContent=dirty?'Unsaved changes - press Save layout':''},1800)}
+/* live text inside the replicas (subject/music) without touching positions */
+setInterval(async()=>{try{const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)return;const next={...await r.json()};const changed=next.subject!==state.subject||next.task!==state.task||next.musicTitle!==state.musicTitle||next.musicArtist!==state.musicArtist||next.twitchChannel!==state.twitchChannel||next.kickChannel!==state.kickChannel||next.lastSession!==state.lastSession;state=next;if(changed&&!dirty){renderPanel();renderMusic();renderChat()}}catch{}},1500);
+load().catch(()=>{ $('dirtyFlag').textContent='Server offline - start it with start_windows.bat'; });
+</script></body></html>

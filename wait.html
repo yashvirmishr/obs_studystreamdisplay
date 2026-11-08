@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0;url=/overlay.html?mode=wait">
-  <title>Please Wait - Study Stream</title>
+  <title>Please Wait - Study Stream Display</title>
   <style>html,body{width:100%;height:100%;margin:0;background:transparent;overflow:hidden}</style>
 </head>
 <body>
   <script>
-    // Keep the existing OBS Browser Source URL while using the main overlay's
-    // single shared implementation in Please Wait mode.
-    window.location.replace('/overlay.html?mode=wait');
+    // Keep the OBS Browser Source URL stable for the Please Wait scene while
+    // using the main overlay's single shared implementation. Extra URL
+    // parameters (e.g. ?layout=name) are passed through untouched.
+    const params = new URLSearchParams(window.location.search);
+    params.set('mode', 'wait');
+    window.location.replace('/overlay.html?' + params.toString());
   </script>
   <noscript>Please enable JavaScript to display the Please Wait overlay.</noscript>
 </body>

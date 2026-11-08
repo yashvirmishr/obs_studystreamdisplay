@@ -14,8 +14,78 @@ DEFAULT_STATE = {
     "musicTitle": "", "musicArtist": "", "showMusic": True,
     "musicPlaying": False, "lastSession": None, "animation": None,
     "animationId": 0, "twitchChannel": "", "kickChannel": "",
-    "timezone": "Asia/Singapore", "locale": "en-SG", "sessionLog": []
+    "timezone": "Asia/Singapore", "locale": "en-SG", "sessionLog": [],
+    "layouts": {"study": {"panel": {"on": True, "x": 75.1, "y": 3.9, "w": 22.4},
+                          "music": {"on": True, "x": 2.5, "y": 90.2, "w": 19.0},
+                          "chat": {"on": True, "x": 75.5, "y": 56.2, "w": 17.7, "h": 39.8},
+                          "last": True},
+                "wait": {"panel": {"on": False, "x": 75.1, "y": 3.9, "w": 22.4},
+                         "music": {"on": True, "x": 2.5, "y": 3.9, "w": 19.0},
+                         "chat": {"on": True, "x": 75.5, "y": 56.2, "w": 17.7, "h": 39.8},
+                         "last": True}},
+    "sceneLayouts": {"study": "study", "wait": "wait"}
 }
+
+
+def _pct(value, low, high, fallback):
+    try:
+        v = float(value)
+    except (ValueError, TypeError):
+        return fallback
+    return round(min(high, max(low, v)), 2)
+
+
+def _clean_card(card_in, fallback_card, has_height):
+    if not isinstance(card_in, dict):
+        card_in = {}
+    out = {
+        "on": bool(card_in.get("on", fallback_card["on"])),
+        "x": _pct(card_in.get("x", fallback_card["x"]), 0.0, 99.99, fallback_card["x"]),
+        "y": _pct(card_in.get("y", fallback_card["y"]), 0.0, 99.99, fallback_card["y"]),
+        "w": _pct(card_in.get("w", fallback_card["w"]), 6.0, 90.0, fallback_card["w"]),
+    }
+    if has_height:
+        out["h"] = _pct(card_in.get("h", fallback_card["h"]), 10.0, 95.0, fallback_card["h"])
+    return out
+
+
+def _clean_layouts(layouts):
+    """Profiles of card arrangements. Positions are top-left percentages of the
+    OBS source, so they scale across source sizes."""
+    base = DEFAULT_STATE["layouts"]
+    if not isinstance(layouts, dict):
+        return {name: {card: dict(value) if isinstance(value, dict) else value
+                       for card, value in layout.items()}
+                for name, layout in base.items()}
+    out = {}
+    for name, layout in layouts.items():
+        name = str(name).strip().lower()
+        if not re.fullmatch(r"[a-z0-9_-]{1,24}", name) or not isinstance(layout, dict):
+            continue
+        out[name] = {
+            "panel": _clean_card(layout.get("panel"), base["study"]["panel"], False),
+            "music": _clean_card(layout.get("music"), base["study"]["music"], False),
+            "chat": _clean_card(layout.get("chat"), base["study"]["chat"], True),
+            "last": bool(layout["last"]) if isinstance(layout.get("last"), (bool, int)) else True,
+        }
+        if len(out) >= 12:
+            break
+    if not out:
+        return {n: {c: dict(v) if isinstance(v, dict) else v for c, v in l.items()}
+                for n, l in base.items()}
+    return out
+
+
+def _clean_scene_layouts(scene_layouts, layouts):
+    names = list(layouts.keys())
+    fallback = "study" if "study" in names else names[0]
+    if not isinstance(scene_layouts, dict):
+        return {"study": fallback, "wait": fallback}
+    out = {}
+    for scene in ("study", "wait"):
+        value = str(scene_layouts.get(scene, fallback)).strip().lower()[:24]
+        out[scene] = value if value in names else fallback
+    return out
 
 
 def read_state():
@@ -79,6 +149,8 @@ def write_state(data):
     clean["timezone"] = tz_value
     locale_value = re.fullmatch(r"[A-Za-z0-9_-]{2,16}", str(clean.get("locale") or "").strip() or "")
     clean["locale"] = locale_value.group(0) if locale_value else "en-SG"
+    clean["layouts"] = _clean_layouts(clean.get("layouts"))
+    clean["sceneLayouts"] = _clean_scene_layouts(clean.get("sceneLayouts"), clean["layouts"])
     tmp = STATE_FILE.with_suffix('.tmp')
     with tmp.open('w', encoding='utf-8') as f:
         json.dump(clean, f, ensure_ascii=False)
@@ -103,7 +175,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_OPTIONS(self):
-        if self.path.split('?', 1)[0] in ('/api/now-playing', '/api/state'):
+        if self.path.split('?', 1)[0] in ('/api/now-playing', '/api/state', '/api/config'):
             self._send_json({'ok': True})
         else:
             self.send_error(404)
@@ -114,14 +186,22 @@ class Handler(SimpleHTTPRequestHandler):
             return
         super().do_GET()
 
+    # Keys a page may update without sending a full snapshot - the server
+    # merges onto the current state so a running stopwatch, a session log
+    # and the layout editor never clobber each other.
+    CONFIG_KEYS = ('subject', 'task', 'accumulatedMs', 'startedAt', 'running',
+                   'animation', 'animationId', 'lastSession', 'sessionLog',
+                   'timezone', 'locale', 'twitchChannel', 'kickChannel',
+                   'showMusic', 'layouts', 'sceneLayouts')
+
     def do_POST(self):
         path = self.path.split('?', 1)[0]
-        if path not in ('/api/state', '/api/now-playing'):
+        if path not in ('/api/state', '/api/now-playing', '/api/config'):
             self.send_error(404, 'Not found')
             return
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            if size <= 0 or size > 8192:
+            if size <= 0 or size > 32768:
                 self.send_error(400, 'Invalid request size')
                 return
             data = json.loads(self.rfile.read(size).decode('utf-8'))
@@ -135,6 +215,9 @@ class Handler(SimpleHTTPRequestHandler):
                 current['musicPlaying'] = bool(data.get('playing'))
                 current['showMusic'] = bool(current['musicTitle'])
                 result = write_state(current)
+            elif path == '/api/config':
+                merged = {key: data[key] for key in self.CONFIG_KEYS if key in data}
+                result = write_state({**current, **merged})
             else:
                 result = write_state(data)
             self._send_json(result)
@@ -152,6 +235,8 @@ if __name__ == '__main__':
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print('Study Stream controls: http://127.0.0.1:8765/control.html')
     print('OBS overlay:          http://127.0.0.1:8765/overlay.html')
+    print('OBS please-wait:      http://127.0.0.1:8765/wait.html')
+    print('Layout editor:        http://127.0.0.1:8765/layout.html')
     print('Keep this window open. Press Ctrl+C to stop.')
     threading.Timer(0.8, lambda: webbrowser.open(f'http://{HOST}:{PORT}/control.html')).start()
     try:
