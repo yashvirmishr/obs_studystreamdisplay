@@ -1,6 +1,7 @@
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json, os, re, threading, webbrowser
 
 ROOT = Path(__file__).resolve().parent
@@ -12,7 +13,8 @@ DEFAULT_STATE = {
     "accumulatedMs": 0, "startedAt": None, "running": False,
     "musicTitle": "", "musicArtist": "", "showMusic": True,
     "musicPlaying": False, "lastSession": None, "animation": None,
-    "animationId": 0, "twitchChannel": "", "kickChannel": ""
+    "animationId": 0, "twitchChannel": "", "kickChannel": "",
+    "timezone": "Asia/Singapore", "locale": "en-SG"
 }
 
 
@@ -48,6 +50,15 @@ def write_state(data):
         clean["lastSession"] = None
     if clean.get("animation") not in ("start", "stop", None):
         clean["animation"] = None
+    tz_value = str(clean.get("timezone") or "").strip()[:64] or "Asia/Singapore"
+    if tz_value != "auto":
+        try:
+            ZoneInfo(tz_value)
+        except (ZoneInfoNotFoundError, ValueError, KeyError):
+            tz_value = "Asia/Singapore"
+    clean["timezone"] = tz_value
+    locale_value = re.fullmatch(r"[A-Za-z0-9_-]{2,16}", str(clean.get("locale") or "").strip() or "")
+    clean["locale"] = locale_value.group(0) if locale_value else "en-SG"
     tmp = STATE_FILE.with_suffix('.tmp')
     with tmp.open('w', encoding='utf-8') as f:
         json.dump(clean, f, ensure_ascii=False)
