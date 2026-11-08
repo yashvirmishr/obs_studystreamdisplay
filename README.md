@@ -22,6 +22,8 @@ language, or one layout.
 - **Layout profiles**: drag the dashboard, chat and music cards around a
   16:9 stage, save them as named profiles, and get a dedicated OBS link
   per profile - different arrangements for different scenes
+- **Optional cards** you can add per profile: live viewer count,
+  a pomodoro round timer, and a daily-study-goal progress card
 - **Please Wait scene**: the same overlay in "wait mode" with the dashboard
   hidden and the music card moved
 
@@ -65,6 +67,25 @@ SGT*), and the control panel shows a live preview before you save.
 - The control panel shows the log with a running total (30 kept)
 - "Clear usage history" wipes the log and the previous-session card in one
   confirm-guarded action - the timer and settings are untouched
+
+## Optional overlay cards
+The default study/wait profiles keep their shipped arrangement. Three extra
+cards exist for you to add yourself, per profile, in the layout editor
+(select the card in the "Card" dropdown - it is added to the currently
+edited profile the first time you select it):
+
+- **Live viewers** (`stats`) - shows the viewer count of your own stream.
+  The companion extension reads the public number shown on your Twitch or
+  Kick tab and posts it to the local server; nothing is logged in, stored,
+  or sent beyond this machine. Prefer manual? Set it in the control
+  panel's "Stream metrics" card.
+- **Pomodoro** (`pomodoro`) - focus/break rounds with a progress bar.
+  Start, pause and reset them from the control panel; the server keeps
+  the clock running even with no browser tab open, and the overlay gets a
+  toast when a round flips.
+- **Daily study goal** (`goal`) - minutes studied today vs your goal,
+  counted from the session history (plus the running session) in your
+  stream's time zone. 0 disables the target and the card shows plain time.
 
 ## Repository layout
 ```

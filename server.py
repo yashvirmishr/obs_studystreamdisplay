@@ -2,12 +2,14 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-import json, os, re, threading, webbrowser
+import json, os, re, threading, time, webbrowser
 
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "study_state.json"
 HOST = "127.0.0.1"
 PORT = 8765
+STATE_LOCK = threading.Lock()
+
 DEFAULT_STATE = {
     "subject": "Your subject", "task": "Your current topic or task",
     "accumulatedMs": 0, "startedAt": None, "running": False,
@@ -23,8 +25,22 @@ DEFAULT_STATE = {
                          "music": {"on": True, "x": 2.5, "y": 3.9, "w": 19.0},
                          "chat": {"on": True, "x": 75.5, "y": 56.2, "w": 17.7, "h": 39.8},
                          "last": True}},
-    "sceneLayouts": {"study": "study", "wait": "wait"}
+    "sceneLayouts": {"study": "study", "wait": "wait"},
+    "dailyGoalMs": 0,
+    "pomodoro": {"running": False, "phase": None, "endsAt": None,
+                 "remainingMs": 0, "phaseLenMs": 0,
+                 "focusMin": 25, "breakMin": 5, "cycles": 0},
+    "stats": {"viewers": None, "isLive": None, "updatedAt": None, "source": ""}
 }
+
+# Cards a profile may add on its own; never auto-injected into defaults, so
+# the built-in study/wait arrangements stay exactly as shipped.
+OPTIONAL_CARDS = {
+    "stats": {"on": True, "x": 2.5, "y": 3.9, "w": 12.0},
+    "pomodoro": {"on": True, "x": 2.5, "y": 16.5, "w": 12.0},
+    "goal": {"on": True, "x": 2.5, "y": 29.0, "w": 14.0},
+}
+
 
 
 def _pct(value, low, high, fallback):
@@ -68,6 +84,11 @@ def _clean_layouts(layouts):
             "chat": _clean_card(layout.get("chat"), base["study"]["chat"], True),
             "last": bool(layout["last"]) if isinstance(layout.get("last"), (bool, int)) else True,
         }
+        # Optional cards stay completely absent unless the profile
+        # explicitly enables them in the layout editor.
+        for card, spawn in OPTIONAL_CARDS.items():
+            if isinstance(layout.get(card), dict):
+                out[name][card] = _clean_card(layout[card], spawn, False)
         if len(out) >= 12:
             break
     if not out:
@@ -138,8 +159,39 @@ def write_state(data):
             "endedLabel": str(entry.get("endedLabel") or "")[:64],
         })
     clean["sessionLog"] = clean_log
-    if clean.get("animation") not in ("start", "stop", None):
+    if clean.get("animation") not in ("start", "stop", "pomodoro", None):
         clean["animation"] = None
+    clean["dailyGoalMs"] = min(_ms(clean.get("dailyGoalMs")), 24 * 60 * 60000)
+    pom = clean.get("pomodoro")
+    if not isinstance(pom, dict):
+        pom = {}
+    phase = pom.get("phase")
+    def _min(value, default, low, high):
+        try:
+            v = int(value or default)
+        except (ValueError, TypeError):
+            return default
+        return min(max(v, low), high)
+    clean["pomodoro"] = {
+        "running": bool(pom.get("running")),
+        "phase": phase if phase in ("focus", "break") else None,
+        "endsAt": int(pom["endsAt"]) if isinstance(pom.get("endsAt"), (int, float)) else None,
+        "remainingMs": min(_ms(pom.get("remainingMs")), 3 * 60 * 60000),
+        "phaseLenMs": min(_ms(pom.get("phaseLenMs")), 3 * 60 * 60000),
+        "focusMin": _min(pom.get("focusMin", 25), 25, 1, 180),
+        "breakMin": _min(pom.get("breakMin", 5), 5, 1, 60),
+        "cycles": min(_ms(pom.get("cycles")), 999),
+    }
+    stats = clean.get("stats")
+    if not isinstance(stats, dict):
+        stats = {}
+    viewers = stats.get("viewers")
+    clean["stats"] = {
+        "viewers": min(int(viewers), 5_000_000) if isinstance(viewers, (int, float)) and viewers >= 0 else None,
+        "isLive": bool(stats["isLive"]) if isinstance(stats.get("isLive"), (bool, int)) else None,
+        "updatedAt": int(stats["updatedAt"]) if isinstance(stats.get("updatedAt"), (int, float)) else None,
+        "source": str(stats.get("source") or "")[:16],
+    }
     tz_value = str(clean.get("timezone") or "").strip()[:64] or "Asia/Singapore"
     if tz_value != "auto":
         try:
@@ -156,6 +208,44 @@ def write_state(data):
         json.dump(clean, f, ensure_ascii=False)
     tmp.replace(STATE_FILE)
     return clean
+
+
+def _advance_pomodoro():
+    """Flip the pomodoro to the next phase in the background, so cycles keep
+    running even when every browser tab is closed. Runs while the server does."""
+    state = read_state()
+    pom = state.get("pomodoro")
+    if not isinstance(pom, dict) or not pom.get("running"):
+        return
+    ends_at = pom.get("endsAt")
+    if not isinstance(ends_at, (int, float)):
+        return
+    now = int(time.time() * 1000)
+    if now < ends_at:
+        return
+    was_focus = pom.get("phase") == "focus"
+    phase = "break" if was_focus else "focus"
+    minutes = pom.get("breakMin", 5) if phase == "break" else pom.get("focusMin", 25)
+    pom = {**pom, "phase": phase, "running": True,
+           "endsAt": now + int(minutes) * 60000, "remainingMs": 0,
+           "phaseLenMs": int(minutes) * 60000,
+           "cycles": pom.get("cycles", 0) + (1 if was_focus else 0)}
+    with STATE_LOCK:
+        current = read_state()
+        current["pomodoro"] = pom
+        # Reuse the toast animation so OBS gets a "break started"/"focus back" cue.
+        current["animation"] = "pomodoro"
+        current["animationId"] = (current.get("animationId") or 0) + 1
+        write_state(current)
+
+
+def pomodoro_worker():
+    while True:
+        time.sleep(1)
+        try:
+            _advance_pomodoro()
+        except Exception:
+            pass
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -175,7 +265,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_OPTIONS(self):
-        if self.path.split('?', 1)[0] in ('/api/now-playing', '/api/state', '/api/config'):
+        if self.path.split('?', 1)[0] in ('/api/now-playing', '/api/state', '/api/config', '/api/metrics'):
             self._send_json({'ok': True})
         else:
             self.send_error(404)
@@ -192,34 +282,52 @@ class Handler(SimpleHTTPRequestHandler):
     CONFIG_KEYS = ('subject', 'task', 'accumulatedMs', 'startedAt', 'running',
                    'animation', 'animationId', 'lastSession', 'sessionLog',
                    'timezone', 'locale', 'twitchChannel', 'kickChannel',
-                   'showMusic', 'layouts', 'sceneLayouts')
+                   'showMusic', 'layouts', 'sceneLayouts',
+                   'dailyGoalMs', 'pomodoro', 'stats')
 
     def do_POST(self):
         path = self.path.split('?', 1)[0]
-        if path not in ('/api/state', '/api/now-playing', '/api/config'):
+        if path not in ('/api/state', '/api/now-playing', '/api/config', '/api/metrics'):
             self.send_error(404, 'Not found')
             return
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            if size <= 0 or size > 32768:
+            if size <= 0 or size > (2048 if path == '/api/metrics' else 32768):
                 self.send_error(400, 'Invalid request size')
                 return
             data = json.loads(self.rfile.read(size).decode('utf-8'))
             if not isinstance(data, dict):
                 raise ValueError('Expected a JSON object')
-            current = read_state()
-            if path == '/api/now-playing':
-                # The browser extension only supplies public video metadata from the user's own tab.
-                current['musicTitle'] = str(data.get('title') or '')[:120]
-                current['musicArtist'] = str(data.get('artist') or '')[:100]
-                current['musicPlaying'] = bool(data.get('playing'))
-                current['showMusic'] = bool(current['musicTitle'])
-                result = write_state(current)
-            elif path == '/api/config':
-                merged = {key: data[key] for key in self.CONFIG_KEYS if key in data}
-                result = write_state({**current, **merged})
-            else:
-                result = write_state(data)
+            with STATE_LOCK:
+                current = read_state()
+                if path == '/api/now-playing':
+                    # The browser extension only supplies public video metadata from the user's own tab.
+                    current['musicTitle'] = str(data.get('title') or '')[:120]
+                    current['musicArtist'] = str(data.get('artist') or '')[:100]
+                    current['musicPlaying'] = bool(data.get('playing'))
+                    current['showMusic'] = bool(current['musicTitle'])
+                    result = write_state(current)
+                elif path == '/api/metrics':
+                    # Live stream metrics: the companion extension reads public
+                    # viewer counts from the streamer's own Twitch/Kick tab,
+                    # and the control panel can set them manually.
+                    stats = {**current['stats']}
+                    viewers = data.get('viewers')
+                    if isinstance(viewers, (int, float)) and viewers >= 0:
+                        stats['viewers'] = int(viewers)
+                    elif viewers is None and 'viewers' in data:
+                        stats['viewers'] = None
+                    if 'isLive' in data:
+                        stats['isLive'] = bool(data['isLive']) if data['isLive'] is not None else None
+                    stats['updatedAt'] = int(time.time() * 1000)
+                    stats['source'] = str(data.get('source') or 'manual')[:16]
+                    current['stats'] = stats
+                    result = write_state(current)
+                elif path == '/api/config':
+                    merged = {key: data[key] for key in self.CONFIG_KEYS if key in data}
+                    result = write_state({**current, **merged})
+                else:
+                    result = write_state(data)
             self._send_json(result)
         except (ValueError, TypeError, json.JSONDecodeError):
             self.send_error(400, 'Invalid state data')
@@ -238,6 +346,7 @@ if __name__ == '__main__':
     print('OBS please-wait:      http://127.0.0.1:8765/wait.html')
     print('Layout editor:        http://127.0.0.1:8765/layout.html')
     print('Keep this window open. Press Ctrl+C to stop.')
+    threading.Thread(target=pomodoro_worker, daemon=True).start()
     threading.Timer(0.8, lambda: webbrowser.open(f'http://{HOST}:{PORT}/control.html')).start()
     try:
         server.serve_forever()
