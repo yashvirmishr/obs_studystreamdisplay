@@ -3,6 +3,11 @@ study_state.json.tmp
 study_state.tmp
 server_traffic.log
 
+# Packed extension snapshot + its signing key - never commit these; the
+# source of truth is the unpacked folder
+youtube_now_playing_extension.crx
+youtube_now_playing_extension.pem
+
 # OS / tooling junk
 Thumbs.db
 desktop.ini
