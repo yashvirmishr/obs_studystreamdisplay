@@ -1,6 +1,7 @@
 # Runtime state rolling files
 study_state.json.tmp
 study_state.tmp
+server_traffic.log
 
 # OS / tooling junk
 Thumbs.db

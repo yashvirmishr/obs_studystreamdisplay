@@ -258,7 +258,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(payload)))
         self.send_header('Cache-Control', 'no-store')
-        self.send_header('Access-Control-Allow-Origin', 'chrome-extension://*')
+        # '*' is the spec-valid wildcard: the extension origin is
+        # chrome-extension://<id>, and 'chrome-extension://*' is not a
+        # valid ACAO value, so CORS-preflighted requests would be refused.
+        self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
@@ -335,7 +338,18 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(500, 'Could not save state')
 
     def log_message(self, fmt, *args):
-        pass
+        # Debug visibility for extension traffic: instead of vanishing with
+        # the console window (the old pass-through), every request line
+        # lands in server_traffic.log, truncated at ~1 MB.
+        try:
+            log_file = ROOT / 'server_traffic.log'
+            if log_file.exists() and log_file.stat().st_size > 1_000_000:
+                log_file.write_text('', encoding='utf-8')
+            stamp = datetime.now().strftime('%H:%M:%S')
+            with log_file.open('a', encoding='utf-8') as f:
+                f.write(f"{stamp} {self.address_string()} {fmt % args}\n")
+        except OSError:
+            pass
 
 
 if __name__ == '__main__':
