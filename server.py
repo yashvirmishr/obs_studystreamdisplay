@@ -252,6 +252,19 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def end_headers(self):
+        # Static pages (overlay/control/layout) previously shipped no cache
+        # header, so Chromium's heuristic freshness (10% of the file's age)
+        # kept serving stale HTML to OBS browser sources for hours after an
+        # update. Pages must revalidate on every load; the JSON API sets
+        # its own no-store, so only text/html responses are touched here.
+        try:
+            if any(b'text/html' in line for line in self._headers_buffer):
+                self._headers_buffer.append(b'Cache-Control: no-cache\r\n')
+        except (AttributeError, TypeError):
+            pass
+        super().end_headers()
+
     def _send_json(self, data, status=200):
         payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
