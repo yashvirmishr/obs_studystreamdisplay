@@ -1,8 +1,12 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OBS Layout Editor - Study Stream Display</title>
+<link rel="stylesheet" href="/ui.css">
 <style>
-:root{color-scheme:dark;--bg:#111714;--panel:#1b2420;--line:#34433a;--text:#f1f4f0;--muted:#a6b9ab;--accent:#91cba5}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif}
-.kicker{color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase}
+/* Design tokens + shared component styles live in /ui.css (loaded above) */
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:1240px;margin:0 auto;padding:26px 20px 6px}
+/* keep the right-hand link chip on one line: the flex row must not squeeze it */
+.topbar>div:last-child{flex:none}
+.topbar a.menu{white-space:nowrap}
 h1{margin:6px 0 2px;font-size:26px;letter-spacing:-.03em}
 .hint{color:var(--muted);font-size:12px;line-height:1.55;margin:4px 0}
 a.menu{color:var(--accent);font-weight:700;font-size:12px;text-decoration:none;border:1px solid var(--line);border-radius:9px;padding:9px 12px}
@@ -16,15 +20,11 @@ input:focus,select:focus{border-color:var(--accent)}
 input[type=checkbox]{width:auto;display:inline}
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 button{border:0;border-radius:9px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
-.primary{background:var(--accent);color:#142019}
-.secondary{background:#2a3730;color:var(--text);border:1px solid var(--line)}
-.danger{background:#402b2b;color:#f1caca;border:1px solid #674141}
-.saved{min-height:17px;margin-top:9px;color:var(--accent);font-size:12px}
+/* .primary/.secondary/.danger live in /ui.css */margin-top:9px;color:var(--accent);font-size:12px}
 .dirty{color:#f1c001;font-size:12px;min-height:18px}
 .linkrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
-.linkrow:last-child{border-bottom:0}
+/* .linkrow:last-child and .linkrow button live in /ui.css */
 .linkrow .url{color:#b8dcc3;font-family:Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
-.linkrow button{padding:6px 10px;font-size:11px}
 .stage{border:1px solid var(--line);border-radius:16px;background:#0d1210;padding:18px}
 .canvas{position:relative;width:100%;max-width:1000px;margin:0 auto;aspect-ratio:16/9;border-radius:10px;background:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);background-size:26px 26px;overflow:hidden;touch-action:none}
 .rep{position:absolute;border:1px solid rgba(202,220,207,.18);border-radius:12px;background:rgba(19,26,23,.94);box-shadow:0 8px 22px rgba(0,0,0,.25);cursor:grab}

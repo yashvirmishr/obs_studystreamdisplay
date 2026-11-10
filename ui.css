@@ -1,0 +1,30 @@
+/*
+  Study Stream Display - design kernel
+
+  The one home for the color tokens and shared component styles used by the
+  local pages (overlay / control / layout). Consumers: those pages link this
+  file FIRST; each page's inline <style> loads after it and may deliberately
+  override (the overlay's alpha panel tokens, per-page spacing and type).
+
+  Contract rules:
+  - Values here are pasted verbatim from where the pages already agreed.
+    Editing a value edits up to three pages at once - say so in the commit.
+  - A rule that only makes sense on one page belongs in that page's block.
+  - Adding a token is additive and safe; re-purposing or removing one is not.
+*/
+*{box-sizing:border-box}
+:root{
+  color-scheme:dark;
+  --bg:#111714;
+  --panel:#1b2420;
+  --line:#34433a;
+  --text:#f1f4f0;
+  --muted:#a6b9ab;
+  --accent:#91cba5;
+}
+.kicker{color:var(--accent);font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase}
+.primary{background:var(--accent);color:#142019}
+.secondary{background:#2a3730;color:var(--text);border:1px solid var(--line)}
+.danger{background:#402b2b;color:#f1caca;border:1px solid #674141}
+.linkrow:last-child{border-bottom:0}
+.linkrow button{padding:6px 10px;font-size:11px}
