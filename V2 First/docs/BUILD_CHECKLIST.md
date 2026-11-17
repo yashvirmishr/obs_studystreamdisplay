@@ -72,8 +72,8 @@ Legend: ✅ verified on Windows 11 (evidence) · 🧪 implemented + tested via a
 - ✅ ~~Frontend dist is stale vs. current source~~ (rebuilt 2026-11-15, `tsc` + vite exit 0 — includes eventText dedupe + probe cleanup)
 - ⬜ Light theme token pass (dark-first shipped)
 - ⬜ 2 browser advisories in overlay/ dev deps (transitive, dev-only)
-- ⬜ OBS overlay URL card on Overview is hard-wired to the "study" scene; the endpoint accepts any scene — a per-scene picker (or the URL shown in Overlay Studio per scene tab) would serve multi-scene setups better
-- ⬜ Design ambiguity to reconcile: Widgets page toggles (`enabled_widgets` setting) vs. per-scene placements — the overlay currently renders what is *placed* (studio is source of truth) and ignores the global toggle; decide which layer is authoritative before Phase 6
+- ✅ OBS overlay URL card on Overview: per-scene picker chips (Study / Please Wait from GET /api/v1/scenes) drive the overlay-url fetch - done 2026-11-17 (agent-browser verified: Study default, Please Wait chip switched URL to the Please Wait scene token)
+- ✅ Widgets page toggles vs. per-scene placements: layers unambiguous - Overlay Studio (placements) decides whether/where a widget exists on a scene; the global enabled_widgets page is a cross-scene kill switch filtering placements in the overlay (null = all enabled). Applied live via overlay.widgets_updated (2026-11-17). See section J
 
 ## F. Test suite summary (2026-11-14)
 
@@ -151,3 +151,12 @@ Live end-to-end (dev): window → sidecar/venv backend → SQLite → authentica
 
 Note for OBS: overlay asset hashes changed again (index-iYyoVvnm.js) - Browser Sources need one manual refresh.
 Note: backend startup now logs "applying database migrations... database is up to date" on every start; on partial-migration failure it exits 1 so the shell reports the early exit with the log path (honest, diagnosable) instead of serving a broken API.
+
+## K. OBS scene picker for the overlay URL card (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| K1 | GET /api/v1/scenes: list persisted scenes (honest SQLite rows, names + canvas + active flag) | ✅ pass | endpoint auth-401 fail-closed; live call returned Study (active) + Please Wait |
+| K2 | Overview OBS URL card: scene-chip tabs (.scene-chip reuse) replacing the hard-wired "study"; visible only with 2+ scenes; refresh + copy follow the selection | ✅ pass | agent-browser live: Study default shows Study token URL; clicking Please Wait switched to the Please Wait token URL (screenshot obs-scene-picker.png) |
+| K3 | New backend test test_scenes_list_seeded | ✅ pass | suite 36 -> 37 passed |
+| K4 | Sidecar + NSIS installer rebuilt to ship the endpoint | ✅ done | 26.19 MiB at 12:35; X: unmounted after |

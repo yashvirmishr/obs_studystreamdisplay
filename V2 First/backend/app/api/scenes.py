@@ -70,6 +70,29 @@ def _row_to_placement(row: Widget) -> dict:
 row_to_placement = _row_to_placement
 
 
+@router.get("")
+def list_scenes() -> dict:
+    """All persisted scenes, ordered by name.
+
+    Drives the OBS overlay URL picker in the dashboard: the OBS URL is
+    scene-specific, so the UI must know which scenes exist. Returns honest
+    rows from SQLite (seeded: Study / Please Wait); never invents scenes.
+    """
+    with SessionLocal() as db:
+        rows = db.scalars(select(Scene).order_by(Scene.name)).all()
+    return {
+        "scenes": [
+            {
+                "name": r.name,
+                "is_active": r.is_active,
+                "canvas_width": r.canvas_width,
+                "canvas_height": r.canvas_height,
+            }
+            for r in rows
+        ]
+    }
+
+
 @router.get("/{scene_name}/layout")
 def get_layout(scene_name: str) -> dict:
     with SessionLocal() as db:

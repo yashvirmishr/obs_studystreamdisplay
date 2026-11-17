@@ -266,6 +266,10 @@ export const api = {
   },
 
   scenes: {
+    list: () =>
+      request<{ scenes: Array<{ name: string; is_active: boolean; canvas_width: number; canvas_height: number }> }>(
+        "/api/v1/scenes",
+      ),
     getLayout: (sceneName: string) =>
       request<{ scene: string; placements: LayoutPlacement[] | null }>(
         `/api/v1/scenes/${encodeURIComponent(sceneName)}/layout`,

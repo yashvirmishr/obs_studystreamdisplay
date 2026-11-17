@@ -353,3 +353,26 @@ killed. Ports free after testing.
 - OpenCode server restarted mid-session (shell interruptions); dev backend
   was killed and restarted cleanly each time with verified "port free"
   checks. Current dev backend on 47831 runs the migration-at-startup code.
+
+
+## 2026-11-17 - OBS scene picker for the overlay URL card (follow-up slice)
+
+- New endpoint GET /api/v1/scenes (list persisted scenes from SQLite; honest,
+  no invented rows). scenes.list() added to the frontend api client.
+- Overview OBS overlay URL card now renders scene-chip tabs (reusing
+  .scene-chip); selection drives the overlay-url fetch. Visible only when
+  more than one scene exists; falls back gracefully if the list call fails.
+  Health section's OBS overlay line follows the selection; the two
+  hard-wired overlayUrl("study") calls are gone.
+- Verified live (agent-browser, vite dev on 127.0.0.1:5173 + fresh backend
+  on 47831): picker showed Study (selected) and Please Wait; clicking
+  Please Wait switched the URL to the Please Wait scene token (1925552...
+  faa) with selected state moved. Study stays the default when present,
+  falling back to names[0] otherwise. Screenshot: obs-scene-picker.png.
+- Backend test added: test_scenes_list_seeded (36 -> 37 passed).
+- Frontend build exit 0. Sidecar + NSIS installer rebuilt again so the
+  shipped installer includes the endpoint (26.19 MiB). Overlay bundle hash
+  unchanged in this slice, so OBS sources do not need a refresh for it.
+- Git: V2 First tree initially committed as f12c440 (v2-open-overlay) and
+  pushed to origin (6f803d3..f12c440). V1 root restructure, V1.zip and the
+  Lo-fi image remain uncommitted on purpose (owner's call).

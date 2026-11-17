@@ -98,6 +98,29 @@ def test_pause_when_idle_conflicts(client: TestClient):
     assert client.post("/api/v1/study/resume", headers=AUTH).status_code == 409
 
 
+def test_scenes_list_seeded(client: TestClient):
+    """GET /api/v1/scenes returns the seeded Study + Please Wait rows."""
+    from datetime import datetime, timezone
+
+    from app.database import SessionLocal
+    from app.models import Scene
+    from sqlalchemy import select
+
+    with SessionLocal() as db:
+        existing = {r.name for r in db.scalars(select(Scene)).all()}
+        now = datetime.now(timezone.utc)
+        for name in ("Study", "Please Wait"):
+            if name not in existing:
+                db.add(Scene(name=name, is_active=name == "Study", created_at=now, updated_at=now))
+        db.commit()
+
+    r = client.get("/api/v1/scenes", headers=AUTH)
+    assert r.status_code == 200
+    names = [s["name"] for s in r.json()["scenes"]]
+    assert "Study" in names and "Please Wait" in names
+    assert all("is_active" in s and "canvas_width" in s for s in r.json()["scenes"])
+
+
 def test_test_event_lifecycle(client: TestClient):
     r = client.post(
         "/api/v1/events/test",

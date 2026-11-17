@@ -70,6 +70,8 @@ export default function Overview({ probe }: OverviewProps) {
   const [busy, setBusy] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
   const [obsUrl, setObsUrl] = useState<string | null>(null);
+  const [obsScene, setObsScene] = useState("Study");
+  const [sceneNames, setSceneNames] = useState<string[]>([]);
   const [obsUrlStatus, setObsUrlStatus] = useState<"loading" | "ready" | "error">("loading");
   const [obsUrlError, setObsUrlError] = useState<string | null>(null);
   // Initial load + steady poll to resync with the authoritative backend.
@@ -167,12 +169,32 @@ export default function Overview({ probe }: OverviewProps) {
     return { weekCount: thisWeek.length, longest, streak };
   }, [history]);
 
-  // OBS overlay URL — fetched once on mount, scene-specific, persistent.
+  // Scenes for the OBS URL picker — persisted rows from SQLite (honest;
+  // never an invented list). Fail-closed: picker stays on the default scene.
+  useEffect(() => {
+    let cancelled = false;
+    api.scenes
+      .list()
+      .then((r) => {
+        if (cancelled) return;
+        const names = r.scenes.map((s) => s.name);
+        setSceneNames(names);
+        setObsScene((prev) => (names.includes(prev) ? prev : names[0] ?? prev));
+      })
+      .catch(() => {
+        /* backend unreachable — URL card shows its own error state */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // OBS overlay URL — refetched whenever the selected scene changes.
   useEffect(() => {
     let cancelled = false;
     setObsUrlStatus("loading");
     setObsUrlError(null);
-    api.obs.overlayUrl("study")
+    api.obs.overlayUrl(obsScene)
       .then((r) => {
         if (cancelled) return;
         setObsUrl(r.url);
@@ -185,7 +207,7 @@ export default function Overview({ probe }: OverviewProps) {
         setObsUrlStatus("error");
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [obsScene]);
 
   const copyObsUrl = useCallback(async () => {
     if (!obsUrl) return;
@@ -200,10 +222,10 @@ export default function Overview({ probe }: OverviewProps) {
   const refreshObsUrl = useCallback(() => {
     setObsUrlStatus("loading");
     setObsUrlError(null);
-    api.obs.overlayUrl("study")
+    api.obs.overlayUrl(obsScene)
       .then((r) => { setObsUrl(r.url); setObsUrlStatus("ready"); })
       .catch((err: unknown) => { setObsUrlError(err instanceof Error ? err.message : "refresh failed"); setObsUrlStatus("error"); });
-  }, []);
+  }, [obsScene]);
 
   const connectionRows = useMemo(() => {
     const label: Record<string, string> = {
@@ -407,6 +429,22 @@ export default function Overview({ probe }: OverviewProps) {
               <div className="sub">Scene-specific credential · paste into OBS Browser Source</div>
             </div>
           </div>
+          {sceneNames.length > 1 && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }} role="tablist" aria-label="OBS scene">
+              {sceneNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="tab"
+                  aria-selected={obsScene === name}
+                  className={`scene-chip${obsScene === name ? " active" : ""}`}
+                  onClick={() => setObsScene(name)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input
               readOnly
@@ -465,7 +503,7 @@ export default function Overview({ probe }: OverviewProps) {
             </div>
             <div className="conn-row">
               <span className={`conn-dot ${backendReachable ? "ok" : "bad"}`} />
-              <span className="name">OBS overlay · /overlay/study</span>
+              <span className="name">OBS overlay · /overlay/{obsScene.toLowerCase().replace(/ /g, "%20")}</span>
               <span className="why">needs the overlay renderer build</span>
             </div>
             {connectionRows.map((c) => (
