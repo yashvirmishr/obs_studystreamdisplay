@@ -103,6 +103,12 @@ test) — deliberately not run since it modifies the user's system.
 
 - Report progress by editing `docs/PHASE1_ACCEPTANCE.md` and appending a
   dated entry to `docs/PROGRESS_LOG.md`. Keep it terse and factual.
+- FE↔BE contract lives in the backend: endpoints declare `response_model`
+  (`app/api/schemas.py`) so the OpenAPI spec is complete. The frontend's
+  response types alias the generated `src/services/api-schema.ts` — after
+  ANY backend response-shape change run `cd frontend && npm run gen:api`
+  and commit the regenerated file. Never hand-copy response shapes into
+  `api.ts`.
 - If a verification cannot be run (missing tool/credentials), say so
   explicitly in the log instead of assuming.
 - Frontend dev server and backend may be started for testing; always kill

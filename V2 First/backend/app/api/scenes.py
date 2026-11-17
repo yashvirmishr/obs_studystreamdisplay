@@ -11,32 +11,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
 from app.database import SessionLocal
 from app.models import Scene, Widget
+from app.api.schemas import LayoutResponse, LayoutUpdate, Placement, SceneList
 
 router = APIRouter(prefix="/api/v1/scenes")
-
-
-class Placement(BaseModel):
-    instance_name: str = Field(min_length=1, max_length=64)
-    widget_type: str = Field(min_length=1, max_length=64)
-    position_x: float = Field(ge=0.0, le=1.0)
-    position_y: float = Field(ge=0.0, le=1.0)
-    width: float = Field(gt=0.0, le=1.0)
-    height: float = Field(gt=0.0, le=1.0)
-    z_index: int = Field(ge=0, le=999)
-    visible: bool = True
-    locked: bool = False
-    opacity: float = Field(default=1.0, ge=0.0, le=1.0)
-    label: str = Field(default="", max_length=120)
-    variant: str = Field(default="chip", max_length=32)
-
-
-class LayoutUpdate(BaseModel):
-    placements: list[Placement] = Field(default_factory=list, max_length=100)
 
 
 def _get_scene_or_404(db, name: str) -> Scene:
@@ -70,7 +51,7 @@ def _row_to_placement(row: Widget) -> dict:
 row_to_placement = _row_to_placement
 
 
-@router.get("")
+@router.get("", response_model=SceneList)
 def list_scenes() -> dict:
     """All persisted scenes, ordered by name.
 
@@ -93,7 +74,7 @@ def list_scenes() -> dict:
     }
 
 
-@router.get("/{scene_name}/layout")
+@router.get("/{scene_name}/layout", response_model=LayoutResponse)
 def get_layout(scene_name: str) -> dict:
     with SessionLocal() as db:
         scene = _get_scene_or_404(db, scene_name)
@@ -104,7 +85,7 @@ def get_layout(scene_name: str) -> dict:
         return {"scene": scene.name, "placements": placements if rows else None}
 
 
-@router.put("/{scene_name}/layout")
+@router.put("/{scene_name}/layout", response_model=LayoutResponse)
 def put_layout(scene_name: str, body: LayoutUpdate) -> dict:
     import json as _json
 

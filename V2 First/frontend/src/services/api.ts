@@ -11,11 +11,20 @@
 
 export const DEFAULT_PORT = 47831;
 
-export interface HealthResponse {
-  status: string;
-  service: string;
-  api_version: string;
-}
+/* ── response contract (generated from the backend's OpenAPI) ──────────
+ * api-schema.ts is generated from the live spec:
+ *   npm run gen:api
+ * The backend declares response_model on its endpoints (app/api/schemas.py),
+ * so the spec is complete by construction. Do not hand-edit generated
+ * shapes here — regenerate instead. Keys the backend always emits are
+ * pinned with Required<> (they are guaranteed present at runtime); the
+ * React/TS layer keeps its narrowed literal unions where useful.
+ */
+import type { components } from "./api-schema";
+
+type Schemas = components["schemas"];
+
+export type HealthResponse = Schemas["HealthResponse"];
 
 export type BackendStatus =
   | { state: "starting" }
@@ -113,47 +122,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 /* ── namespaces ─────────────────────────────────────────────── */
 
-export interface StudyState {
+export type StudyState = Required<Omit<Schemas["StudyState"], "state">> & {
   state: "idle" | "running" | "paused" | "completed";
-  session_id: number | null;
-  elapsed_seconds: number;
-  today_total_seconds: number;
-  subject: string | null;
-  task: string | null;
-  started_at: string | null;
-}
+};
 
-export interface StudyHistoryEntry {
-  id: number;
-  seconds: number;
-  subject: string | null;
-  task: string | null;
-  completed_at: string | null;
-}
+export type StudyHistoryEntry = Required<Schemas["HistoryEntry"]>;
 
 export type EventSourceName =
   | "twitch" | "kick" | "youtube" | "streamelements" | "study" | "system" | "test";
 
-export interface RecentEvent {
-  event_id: string;
-  event_type: string;
+export type RecentEvent = Omit<Schemas["ActivityEvent"], "source" | "payload"> & {
   source: EventSourceName;
-  occurred_at: string | null;
-  received_at: string | null;
-  is_simulated: boolean;
   payload: Record<string, unknown>;
-}
+};
 
-export interface IntegrationInfo {
-  provider: string;
-  name: string;
-  detail: string;
-  scopes: string[];
-  status: "disconnected" | "connecting" | "connected" | "error";
-  account_name: string | null;
-  last_connected_at: string | null;
-  last_error: string | null;
-}
+export type IntegrationInfo = Required<Schemas["IntegrationInfo"]>;
 
 export interface AppSettings {
   study_goal_hours: number | null;
@@ -162,20 +145,7 @@ export interface AppSettings {
   schema_marker: string | null;
 }
 
-export interface LayoutPlacement {
-  instance_name: string;
-  widget_type: string;
-  position_x: number;
-  position_y: number;
-  width: number;
-  height: number;
-  z_index: number;
-  visible: boolean;
-  locked: boolean;
-  opacity: number;
-  label: string;
-  variant: string;
-}
+export type LayoutPlacement = Required<Schemas["Placement"]>;
 
 /**
  * Normalised placement coordinate guard — the single invariant that must
@@ -266,16 +236,13 @@ export const api = {
   },
 
   scenes: {
-    list: () =>
-      request<{ scenes: Array<{ name: string; is_active: boolean; canvas_width: number; canvas_height: number }> }>(
-        "/api/v1/scenes",
-      ),
+    list: () => request<Schemas["SceneList"]>("/api/v1/scenes"),
     getLayout: (sceneName: string) =>
-      request<{ scene: string; placements: LayoutPlacement[] | null }>(
+      request<Schemas["LayoutResponse"]>(
         `/api/v1/scenes/${encodeURIComponent(sceneName)}/layout`,
       ),
     putLayout: (sceneName: string, placements: LayoutPlacement[]) =>
-      request<{ scene: string; placements: LayoutPlacement[] }>(
+      request<Schemas["LayoutResponse"]>(
         `/api/v1/scenes/${encodeURIComponent(sceneName)}/layout`,
         { method: "PUT", body: JSON.stringify({ placements }) },
       ),
@@ -284,7 +251,7 @@ export const api = {
   obs: {
     /** Returns the full URL an OBS Browser Source should be pointed at. */
     overlayUrl: (sceneName: string) =>
-      request<{ scene: string; token: string; url: string; note: string }>(
+      request<Schemas["ObsOverlayUrl"]>(
         `/api/v1/obs/overlay-url?scene=${encodeURIComponent(sceneName)}`,
       ),
   }

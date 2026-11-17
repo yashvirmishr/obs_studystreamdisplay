@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api.schemas import HistoryEntry, StudyState
 from app.study import service
 
 router = APIRouter(prefix="/api/v1/study")
@@ -15,7 +16,7 @@ class SessionRequest(BaseModel):
     task: str | None = Field(default=None, max_length=200)
 
 
-@router.get("/state")
+@router.get("/state", response_model=StudyState)
 def get_state() -> dict:
     from app.database import SessionLocal
 
@@ -23,7 +24,7 @@ def get_state() -> dict:
         return service.state_payload(db)
 
 
-@router.post("/start", status_code=201)
+@router.post("/start", status_code=201, response_model=StudyState)
 def start(body: SessionRequest | None = None) -> dict:
     try:
         return service.start_session(
@@ -34,7 +35,7 @@ def start(body: SessionRequest | None = None) -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/pause")
+@router.post("/pause", response_model=StudyState)
 def pause() -> dict:
     try:
         return service.pause_session()
@@ -42,7 +43,7 @@ def pause() -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/resume")
+@router.post("/resume", response_model=StudyState)
 def resume() -> dict:
     try:
         return service.resume_session()
@@ -50,7 +51,7 @@ def resume() -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/stop")
+@router.post("/stop", response_model=StudyState)
 def stop() -> dict:
     try:
         return service.stop_session()
@@ -58,6 +59,6 @@ def stop() -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.get("/history")
+@router.get("/history", response_model=list[HistoryEntry])
 def get_history(limit: int = 20) -> list[dict]:
     return service.history(limit=limit)

@@ -19,6 +19,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.events import ENVELOPE_SCHEMA_VERSION
+from app.api.schemas import ActivityEvent
 from app.events.bus import bus
 from app.models import ActivityHistory, Event
 
@@ -68,7 +69,7 @@ def _event_to_dict(row: Event) -> dict:
     }
 
 
-@router.get("/activity/recent")
+@router.get("/activity/recent", response_model=list[ActivityEvent])
 def activity_recent(limit: int = 50) -> list[dict]:
     with SessionLocal() as db:
         rows = db.scalars(
@@ -77,7 +78,7 @@ def activity_recent(limit: int = 50) -> list[dict]:
         return [_event_to_dict(r) for r in rows]
 
 
-@router.post("/events/test", status_code=201)
+@router.post("/events/test", status_code=201, response_model=ActivityEvent)
 def create_test_event(body: TestEventBody) -> dict:
     now = _now()
     event_id = f"test-{uuid.uuid4().hex[:16]}"

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
+from app.api.schemas import IntegrationInfo
 from app.database import SessionLocal
 from app.events import INTEGRATION_PROVIDERS
 from app.models import Integration
@@ -60,7 +61,7 @@ def _row_to_dict(row: Integration) -> dict:
     }
 
 
-@router.get("")
+@router.get("", response_model=list[IntegrationInfo])
 def list_integrations() -> list[dict]:
     with SessionLocal() as db:
         rows = db.scalars(select(Integration).order_by(Integration.provider)).all()

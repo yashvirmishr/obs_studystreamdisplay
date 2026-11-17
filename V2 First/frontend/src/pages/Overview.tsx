@@ -413,7 +413,7 @@ export default function Overview({ probe }: OverviewProps) {
                   <div className="feed-line">{eventTitle(item)}</div>
                   <div className="feed-meta">
                     <span className={`tag ${item.is_simulated ? "tip" : item.source === "streamelements" || item.source === "twitch" || item.source === "kick" || item.source === "youtube" ? (platformTag(item) === "kick" ? "kick" : "twitch") : "system"}`}>{platformTag(item)}</span>
-                    <span>{relativeTime(item.received_at ?? item.occurred_at)}</span>
+                    <span>{relativeTime(item.received_at ?? item.occurred_at ?? null)}</span>
                   </div>
                 </div>
               </div>

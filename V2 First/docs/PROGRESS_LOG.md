@@ -424,3 +424,14 @@ killed. Ports free after testing.
   rebuilt again (26.20 MiB at 12:57). Dev backend on 47831 restarted with
   retention in place (verified 0 rows pruned at startup - correct for a
   young dev DB) and is serving.
+
+## 2026-11-17 - OpenAPI response contract + generated FE types
+
+- Root cause of every hand-maintained FE<->BE mismatch: the spec omitted
+  response schemas (typed additionalProperties). Fixed at the source:
+  response_model declared on every endpoint (app/api/schemas.py).
+- Frontend interfaces now alias the generated schema; `npm run gen:api`
+  regenerates src/services/api-schema.ts against the local backend.
+  tsc + vite exit 0; suite 39 passed. Contract drift is now a type error.
+- Installer rebuilt (26.20 MiB at 13:11). Dev backend restarted on 47831
+  and serves the response models.

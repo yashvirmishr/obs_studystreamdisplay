@@ -178,3 +178,12 @@ Note: backend startup now logs "applying database migrations... database is up t
 | M2 | Fresh code shipped: sidecar + installer rebuilt with retention | ✅ done | 26.20 MiB at 12:57; X: unmounted after |
 | M3 | overlay/ + frontend/ advisories (esbuild <=0.24.2 dev-server-only): assessed, documented as accepted exception; `npm audit fix --force` (vite 8 rolldown/OXC) deferred to a dedicated migration; not a production-surface issue | ✅ documented | BUILD_CHECKLIST section E + PROGRESS_LOG |
 | M4 | Settings Storage row now states the real retention knob instead of "(Phase 6)" | ✅ done | rendered text verified; js hash index-B7sIv9ow.js |
+
+## N. OpenAPI response contract + generated FE types (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| N1 | Backend response bodies were untyped in the spec (`additionalProperties`); endpoints now declare `response_model` | ✅ done | app/api/schemas.py (HealthResponse, StudyState, HistoryEntry, ActivityEvent, IntegrationInfo, SceneList/SceneInfo, ObsOverlayUrl, LayoutResponse/Placement); 39 tests still pass (FastAPI runtime-validates declared responses) |
+| N2 | Frontend hand-maintained response interfaces replaced by aliases of the generated schema | ✅ done | frontend/src/services/api-schema.ts generated via `npm run gen:api` (openapi-typescript 7.13.0); api.ts exports the same names (StudyState narrowed on `state`; IntegrationInfo/LayoutPlacement/HistoryEntry/RecentEvent required-key-pinned); 1 strict-null fix (Overview received_at) |
+| N3 | gen:api script added | ✅ done | package.json `gen:api`; spec is public (not behind /api/v1) so no token in the script |
+| N4 | Sidecar + installer rebuilt with validated responses | ✅ done | 26.20 MiB at 13:11; X: unmounted after |

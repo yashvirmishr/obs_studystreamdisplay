@@ -20,6 +20,7 @@ import logging
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.schemas import ObsOverlayUrl
 from app.api.health import router as health_router
 from app.api.study import router as study_router
 from app.api.events import router as events_router
@@ -77,7 +78,7 @@ app.include_router(integrations_router)
 app.include_router(scenes_router)
 
 
-@app.get("/api/v1/obs/overlay-url")
+@app.get("/api/v1/obs/overlay-url", response_model=ObsOverlayUrl)
 def overlay_url(scene: str = "study") -> dict:
     """Return the full overlay URL for an OBS Browser Source.
 
