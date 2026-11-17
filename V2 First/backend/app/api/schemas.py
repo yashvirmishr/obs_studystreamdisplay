@@ -78,6 +78,26 @@ class IntegrationInfo(BaseModel):
     last_error: str | None = None
 
 
+class ConnectRequest(BaseModel):
+    """Body for POST /integrations/{provider}/connect.
+
+    Only providers whose handshake is implemented read this; the secret
+    never comes back out of the endpoint and is never logged.
+    """
+
+    token: str = Field(min_length=10, max_length=8192)
+
+
+class IntegrationConnectResponse(BaseModel):
+    provider: str
+    status: str
+    account_name: str | None = None
+    last_connected_at: str | None = None
+    verified: bool
+    gateway: str
+    credential_store: str
+
+
 class SceneInfo(BaseModel):
     name: str
     is_active: bool

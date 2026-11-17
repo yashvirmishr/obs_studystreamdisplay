@@ -214,10 +214,10 @@ export const api = {
 
   integrations: {
     list: () => request<IntegrationInfo[]>("/api/v1/integrations"),
-    connect: (provider: string) =>
-      request<{ provider: string; status: string }>(
+    connect: (provider: string, body?: { token?: string }) =>
+      request<Schemas["IntegrationConnectResponse"]>(
         `/api/v1/integrations/${provider}/connect`,
-        { method: "POST" },
+        { method: "POST", body: body ? JSON.stringify(body) : undefined },
       ),
     disconnect: (provider: string) =>
       request<{ provider: string; status: string }>(

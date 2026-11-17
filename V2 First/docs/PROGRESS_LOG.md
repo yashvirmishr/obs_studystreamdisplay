@@ -486,3 +486,39 @@ killed. Ports free after testing.
   app.css and verified via vite preview + agent-browser (no sliver).
 - Installer rebuilt with the fix. If a 1 px line still appears at the very
   corner after this, it is the Windows DWM window frame, not app content.
+
+## 2026-11-17 - StreamElements connect handshake (Phase 5 slice)
+
+- `app/integrations/streamelements.py`: local JWT decode (claims are
+  UNTRUSTED - used only to learn the room id), claim validation, and
+  `verify_token`, which opens the real wss://astro.streamelements.com
+  gateway, subscribes to channel.activities and treats the subscribe
+  ACK as the only proof the token is good.
+- `POST /api/v1/integrations/{provider}/connect` is async + real for
+  streamelements: validate claims -> gateway handshake -> vault store ->
+  row connected, returning verified/gateway/credential_store. Garbage
+  tokens get an honest 400; every other provider stays an honest 501
+  (they need their own OAuth app registration).
+- Dashboard: SE card gains a password field ("Connect with JWT"); the
+  token is cleared from the page after use; backend errors surface
+  verbatim. api-schema.ts regenerated from the CURRENT backend - the
+  first gen:api in this slice silently ran against a stale server; the
+  backend was restarted and the spec regenerated before wiring types.
+- Suite: 45 -> 52 passed (test_se_connect.py, 7 tests).
+- LIVE proof with the real dashboard JWT: connect -> verified:true
+  ("SE channel 67adcbd8c9f465394f8c7f47 (linked twitch)"); garbage ->
+  400 "that is not a JWT"; disconnect -> credential_purged:true; vault
+  confirmed empty afterwards. The pasted token was purged from this
+  machine. ROTATION STILL OWED BY THE OWNER: the JWT sat in the
+  transcript (role owner, exp 2027-05-13) - revoke it in the SE
+  dashboard. The SE dashboard invite link must stay private too.
+- Packaging: websockets>=14 added; spec hiddenimports pin it and the
+  keyring backends. Sidecar rebuilt (24.3 MB), installer rebuilt
+  (26.38 MiB). Packaged exe smoked on a scratch DB: health ok, garbage
+  -> 400, wrong auth -> 401, registry serves 8 widgets; tree-killed,
+  no orphans, scratch DB removed. Analysis-00.toc proves websockets
+  (138 entries) + keyring (59) + app.integrations.streamelements are
+  inside the onefile exe.
+- Honest gap: no browser UI pass this slice - the agent-browser CLI is
+  wedged on this machine (3 launch hangs, 26 stray Chrome processes
+  cleaned; see AGENT_CONTEXT). Evidence is API + build only.

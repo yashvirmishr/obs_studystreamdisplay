@@ -204,7 +204,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Connect */
+        /**
+         * Connect
+         * @description Connect a provider.
+         *
+         *     streamelements is the implemented handshake: the pasted JWT is verified
+         *     against the real Astro gateway (its subscribe ack is the only proof we
+         *     trust), then stored in the OS credential vault. The token never lands in
+         *     SQLite, logs, or the response. Other providers stay an honest 501.
+         */
         post: operations["connect_api_v1_integrations__provider__connect_post"];
         delete?: never;
         options?: never;
@@ -221,7 +229,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Disconnect */
+        /**
+         * Disconnect
+         * @description Honest disconnect: the row goes disconnected AND any stored OAuth
+         *     credential is purged from the OS vault. `credential_purged` reports what
+         *     actually happened so the UI never claims a secret was erased when it
+         *     wasn't.
+         */
         post: operations["disconnect_api_v1_integrations__provider__disconnect_post"];
         delete?: never;
         options?: never;
@@ -367,6 +381,17 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ConnectRequest
+         * @description Body for POST /integrations/{provider}/connect.
+         *
+         *     Only providers whose handshake is implemented read this; the secret
+         *     never comes back out of the endpoint and is never logged.
+         */
+        ConnectRequest: {
+            /** Token */
+            token: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -393,6 +418,23 @@ export interface components {
             task?: string | null;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** IntegrationConnectResponse */
+        IntegrationConnectResponse: {
+            /** Provider */
+            provider: string;
+            /** Status */
+            status: string;
+            /** Account Name */
+            account_name?: string | null;
+            /** Last Connected At */
+            last_connected_at?: string | null;
+            /** Verified */
+            verified: boolean;
+            /** Gateway */
+            gateway: string;
+            /** Credential Store */
+            credential_store: string;
         };
         /** IntegrationInfo */
         IntegrationInfo: {
@@ -926,7 +968,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConnectRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -934,9 +980,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["IntegrationConnectResponse"];
                 };
             };
             /** @description Validation Error */

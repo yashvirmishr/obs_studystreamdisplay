@@ -64,6 +64,7 @@ a = Analysis(
         "keyring",
         "keyring.backends.Windows",
         "keyring.backends.fail",
+        "websockets",
         "win32ctypes.pywin32.win32cred",
         "win32ctypes.pywin32.pywintypes",
     ],

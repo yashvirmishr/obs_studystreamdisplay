@@ -68,7 +68,7 @@ Legend: ✅ verified on Windows 11 (evidence) · 🧪 implemented + tested via a
 - ⬜ Mouse **drag & resize-handle** in Overlay Studio untested via MCP (no pointer-drag in tooling) — you should try dragging once by hand
 - ⬜ NSIS installer never executed (needs your go-ahead) + clean-machine test
 - ⬜ Memory measurement on 16 GB machine
-- ⬜ Phase 2+ features: actual dashboard data density polish, Phase 4 widget registry endpoints, Phase 5 chat (StreamElements), Phase 6 events wiring, Phase 7 study integration into overlay, OBS CEF rendering test
+- ⬜ Phase 2+ features: actual dashboard data density polish, Phase 4 widget registry endpoints, Phase 5 chat SUBSCRIBER pipeline (SE connect handshake is DONE - see section S; streaming chat into the overlay is not), Phase 6 events wiring, Phase 7 study integration into overlay, OBS CEF rendering test
 - ✅ ~~Frontend dist is stale vs. current source~~ (rebuilt 2026-11-15, `tsc` + vite exit 0 — includes eventText dedupe + probe cleanup)
 - ⬜ Light theme token pass (dark-first shipped)
 - ✅ Dev-server advisories (esbuild GHSA-67mh-4wv8-2f99): RESOLVED 2026-11-17 by upgrading vite 5 -> 7.3.8 in BOTH apps (vite 7 ships esbuild ^0.25, clearing both advisories without the rolldown jump of vite 8). npm audit now reports zero vulnerabilities in frontend/ and overlay/. Rolled out + verified live; OBS Browser Sources need one manual refresh (asset hashes changed).
@@ -224,3 +224,17 @@ Note: backend startup now logs "applying database migrations... database is up t
 | R1 | White sliver around the window: html/body never got a dark background (only .ss-ambient painted dark; the browser's default page background leaked at the outermost 1-2 px) | ✅ fixed | app.css: html, body, #root now paint var(--ss-color-surface-background); verified via vite preview + agent-browser screenshot (no edge sliver at viewport edges) |
 | R2 | Installer rebuilt with the fix | ✅ done | 26.37 MiB; OBS refresh not needed (this change does not touch the overlay bundle) |
 | R3 | Remaining edge line, if any, is the Windows DWM rounded-corner frame, not app content; cosmetic and external to the app | noted | only removable by frameless mode (tauri decorations=false) or Windows accent-border setting |
+
+## S. StreamElements connect handshake - real, vault-backed (Phase 5 slice, 2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| S1 | `app/integrations/streamelements.py`: local JWT decode (claims UNTRUSTED - used only to learn the room id), claim validation (iss/exp/channel/role), `verify_token` = real `wss://astro.streamelements.com` gateway subscribe round trip whose ack is the ONLY trusted proof | ? done | module + tests |
+| S2 | `POST /{provider}/connect` is async + real for streamelements: validate claims -> gateway handshake -> vault store -> row connected; response carries `verified`/`gateway`/`credential_store`. Garbage -> friendly 400; every OTHER provider stays an honest 501 | ? done | supersedes B8/P4 wording for SE only; A12's 501 design note stays true for the rest |
+| S3 | Dashboard: SE card gains a password field + "Connect with JWT"; token cleared from the page after use; backend error text surfaced verbatim | ? done | Integrations.tsx + api.ts; `npm run build` green (tsc strict) |
+| S4 | `api-schema.ts` regenerated from the CURRENT backend - the first `gen:api` in this slice silently used a still-running OLD server; backend was restarted and the spec regenerated | ? done | generated types now include ConnectRequest + IntegrationConnectResponse |
+| S5 | Suite 45 -> 52 passed (7 new in test_se_connect.py; the 5 vault tests from section P included) | ? pass | `pytest -q` |
+| S6 | LIVE proof with the real dashboard JWT: connect -> verified:true, account "SE channel 67adcbd8c9f465394f8c7f47 (linked twitch)"; garbage -> 400 "that is not a JWT"; disconnect -> credential_purged:true; vault confirmed empty after | ? verified live | curl run transcript in PROGRESS_LOG; the pasted token was then purged from this machine |
+| S7 | Deps bundled: `websockets>=14` in requirements.txt; spec hiddenimports pin websockets + keyring backends | ? done | Analysis-00.toc: 138 websockets entries, 59 keyring entries, app.integrations.streamelements present |
+| S8 | Sidecar + installer rebuilt and smoked: packaged exe on a scratch DB - health 200 (migrations applied), long garbage token -> 400, wrong auth -> 401 fail-closed, registry serves 8 widgets; tree-killed, port free, scratch DB removed | ? done | sidecar 24.3 MB; installer Study Stream 2.0_0.1.0_x64-setup.exe 26.38 MiB |
+| S9 | Browser UI pass of the Connect button | ⬜ NOT claimed | agent-browser CLI is wedged on this machine (AGENT_CONTEXT); evidence is API + build only - owner should click Connect once in the app |

@@ -81,6 +81,12 @@ WebSockets. The OBS overlay is a separate React renderer (later phases).
   placed widgets, filtered by the global `enabled_widgets` preference which
   also updates live via `overlay.widgets_updated` (2026-11-17). Overlay asset
   hashes change every rebuild — OBS Browser Sources need one manual refresh.
+- **agent-browser CLI is wedged on this machine (2026-11-17):** `open`
+  hangs past 180 s and leaks Chrome processes (26 strays cleaned after
+  three attempts). Until it is re-installed, verify UI-adjacent work via
+  curl/API probes + `npm run build` green, and say so honestly in the
+  checklist instead of claiming a browser test. browse MCP was offline
+  too; chrome-devtools MCP was not reachable from this shell.
 
 ## Phase 1 remaining work (in order) — STATUS 2026-11-14
 

@@ -3,10 +3,11 @@
 Rows for the four providers are seeded disconnected by migration 0003 —
 presence in the registry is not a fake connection. State changes honestly:
 
-- POST /connect    → the provider has no OAuth handshake implemented yet, so
-  it returns 501 with a precise explanation and leaves the row `disconnected`.
-  We do not fabricate `connected`.
-- POST /disconnect → works for real: status becomes `disconnected`.
+- POST /connect    → streamelements performs a REAL handshake against the
+  Astro gateway with the pasted JWT and stores it in the OS credential
+  vault. Every other provider still returns 501 (no handshake implemented).
+- POST /disconnect → works for real: status becomes `disconnected` AND any
+  stored credential is purged from the vault.
 """
 
 from __future__ import annotations
@@ -16,7 +17,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from app.api.schemas import IntegrationInfo
+from app.api.schemas import (
+    ConnectRequest,
+    IntegrationConnectResponse,
+    IntegrationInfo,
+)
 from app.database import SessionLocal
 from app.events import INTEGRATION_PROVIDERS
 from app.models import Integration
@@ -83,19 +88,105 @@ def list_integrations() -> list[dict]:
         ]
 
 
-@router.post("/{provider}/connect")
-def connect(provider: str) -> dict:
+@router.post("/{provider}/connect", response_model=IntegrationConnectResponse)
+async def connect(provider: str, body: ConnectRequest | None = None) -> dict:
+    """Connect a provider.
+
+    streamelements is the implemented handshake: the pasted JWT is verified
+    against the real Astro gateway (its subscribe ack is the only proof we
+    trust), then stored in the OS credential vault. The token never lands in
+    SQLite, logs, or the response. Other providers stay an honest 501.
+    """
     if provider not in INTEGRATION_PROVIDERS:
         raise HTTPException(status_code=404, detail=f"unknown provider: {provider}")
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "OAuth handshake for this provider is not implemented yet. Token storage "
-            "IS ready (OS credential vault — `keyring`, Windows Credential Manager). "
-            "Connecting needs the provider's developer credentials on your machine; "
-            "the handshake ships in Phase 5. No fake connections are made."
-        ),
+
+    if provider != "streamelements":
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "OAuth handshake for this provider is not implemented yet. Token storage "
+                "IS ready (OS credential vault — `keyring`, Windows Credential Manager). "
+                "Connecting needs the provider's developer credentials on your machine; "
+                "the handshake ships in Phase 5. No fake connections are made."
+            ),
+        )
+
+    token = (body.token.strip() if body and body.token else "")
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail="StreamElements needs the JWT copied from its dashboard (avatar menu → channel).",
+        )
+
+    from app.integrations.streamelements import (
+        StreamElementsAuthError,
+        decode_claims,
+        validate_claims,
+        verify_token,
     )
+    from app.security import vault
+
+    try:
+        validate_claims(decode_claims(token))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"that is not a JWT: {exc}") from exc
+    except StreamElementsAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        info = await verify_token(token)
+    except StreamElementsAuthError as exc:
+        _set_row(provider, "error", last_error=str(exc)[:500])
+        raise HTTPException(status_code=400, detail=f"StreamElements rejected the token: {exc}") from exc
+
+    try:
+        vault.set_token(provider, token)
+    except Exception as exc:
+        _set_row(provider, "error", last_error=f"credential vault unavailable: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="The OS credential vault refused the token; nothing was stored and the connection was NOT marked connected.",
+        ) from exc
+
+    account_name = f"SE channel {info['channel']} (linked {info['provider']})"
+    now = datetime.now(timezone.utc)
+    _set_row(provider, "connected", account_name=account_name, last_connected_at=now)
+    return {
+        "provider": provider,
+        "status": "connected",
+        "account_name": account_name,
+        "last_connected_at": now.isoformat(),
+        "verified": True,
+        "gateway": "wss://astro.streamelements.com",
+        "credential_store": "OS credential vault (keyring)",
+    }
+
+
+def _set_row(
+    provider: str,
+    status: str,
+    *,
+    account_name: str | None = None,
+    last_connected_at: datetime | None = None,
+    last_error: str | None = None,
+) -> None:
+    """Write integration state honestly (get-or-create, then commit)."""
+    with SessionLocal() as db:
+        row = db.scalars(select(Integration).where(Integration.provider == provider)).first()
+        if row is None:
+            from app.models import Integration as IntegrationModel
+
+            row = IntegrationModel(provider=provider, status=status)
+            db.add(row)
+        else:
+            row.status = status
+        if account_name is not None:
+            row.account_name = account_name
+        if last_connected_at is not None:
+            row.last_connected_at = last_connected_at
+        if last_error is not None:
+            row.last_error = last_error
+        db.commit()
 
 
 @router.post("/{provider}/disconnect")

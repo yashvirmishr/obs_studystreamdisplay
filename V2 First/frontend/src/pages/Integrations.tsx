@@ -12,6 +12,7 @@ export default function Integrations() {
   const [items, setItems] = useState<IntegrationInfo[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
+  const [seToken, setSeToken] = useState("");
   const [testType, setTestType] = useState<TestEventBody["type"]>("stream.follow");
   const [testName, setTestName] = useState("deep_test_viewer");
   const [sending, setSending] = useState(false);
@@ -31,11 +32,20 @@ export default function Integrations() {
 
   const connect = async (provider: string, name: string) => {
     try {
-      await api.integrations.connect(provider);
+      if (provider === "streamelements") {
+        if (!seToken.trim()) {
+          setSnack("Paste your StreamElements JWT first (avatar menu → channel in the SE dashboard).");
+          return;
+        }
+        await api.integrations.connect(provider, { token: seToken.trim() });
+        setSeToken(""); // the vault holds it now — nothing lingers in the page
+      } else {
+        await api.integrations.connect(provider);
+      }
       setSnack(`${name} connected.`);
       await load();
     } catch (err) {
-      // The backend explains exactly why v0.1 cannot connect yet (501 + detail).
+      // The backend explains exactly what failed (400 rejected token / 501 not implemented).
       setSnack(err instanceof HttpError ? err.message : "connect failed");
     }
   };
@@ -101,6 +111,21 @@ export default function Integrations() {
                   {item.scopes.map((s) => <code key={s} className="scope-chip">{s}</code>)}
                 </div>
                 {item.last_error && <p style={{ fontSize: 11, color: "#d9a24e", margin: "-4px 0 10px" }}>Last error: {item.last_error}</p>}
+                {item.provider === "streamelements" && !connected && (
+                  <div style={{ marginBottom: 12 }}>
+                    <input
+                      type="password"
+                      value={seToken}
+                      onChange={(e) => setSeToken(e.target.value)}
+                      placeholder="Paste your StreamElements JWT"
+                      aria-label="StreamElements JWT"
+                      style={{ width: "100%", background: "var(--ss-surface-container)", color: "var(--ss-color-text-primary)", border: "1px solid var(--ss-surface-container-highest)", borderRadius: 12, padding: "9px 12px", fontSize: 12, fontFamily: "var(--ss-font-mono)" }}
+                    />
+                    <p style={{ fontSize: 11, lineHeight: 1.5, color: "var(--ss-color-text-faint)", margin: "6px 0 0" }}>
+                      Copied from the SE dashboard (avatar menu → channel). It goes straight to the Windows Credential Manager — never to SQLite, logs, or this page's storage.
+                    </p>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   {connected ? (
                     <button className="btn btn-outlined" type="button" onClick={() => void disconnect(item.provider, item.name)}>
@@ -108,7 +133,7 @@ export default function Integrations() {
                     </button>
                   ) : (
                     <button className="btn btn-filled" type="button" onClick={() => void connect(item.provider, item.name)}>
-                      <Icon name="integrations" size={16} /> Connect
+                      <Icon name="integrations" size={16} /> {item.provider === "streamelements" ? "Connect with JWT" : "Connect"}
                     </button>
                   )}
                 </div>
