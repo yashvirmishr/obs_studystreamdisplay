@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Stream 2.0 — Overlay</title>
+  </head>
+  <!--
+    OBS composites this page over the stream capture. The page itself must
+    stay fully transparent at every level (html, body, #root) so only widget
+    pixels reach the stream. Do not set an opaque background anywhere.
+  -->
+  <body style="background: transparent; margin: 0; overflow: hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

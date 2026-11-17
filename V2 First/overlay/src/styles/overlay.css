@@ -1,0 +1,353 @@
+/*
+ * Study Stream 2.0 — overlay styles.
+ *
+ * Design tokens: this file hand-rolls a minimal token set named to match the
+ * shared design-token system planned for `shared/design-tokens` (Phase 2,
+ * see docs/ARCHITECTURE.md directory map). When those shared tokens land,
+ * these definitions should be replaced by imports of the shared values.
+ *
+ * Transparency invariant: OBS composites the page over the stream capture.
+ * html, body and #root must never receive an opaque background; index.html
+ * sets `background: transparent` on <body> for pre-CSS first paint.
+ */
+
+:root {
+  /* --color-* tokens (mirrors future shared design-tokens) */
+  --color-bg-banner: rgba(15, 18, 24, 0.78);
+  --color-bg-banner-hover: rgba(15, 18, 24, 0.9);
+  --color-text-primary: #f2f5fa;
+  --color-text-muted: #aeb6c4;
+  --color-status-warn: #f5b942;
+  --color-status-error: #e5534b;
+
+  /* --radius-* tokens */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* --motion-* tokens */
+  --motion-fast: 150ms ease-out;
+  --motion-medium: 300ms ease-out;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/*
+ * The stage fills the browser source; widgets are positioned against it in
+ * normalised coordinates (0..1) in Phase 3.
+ */
+.overlay-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.overlay-stage__placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-align: center;
+  /* Placeholder text only renders during manual/dev viewing, not against a
+     stream — keep it faint so even then it barely registers. */
+  opacity: 0.6;
+}
+
+/*
+ * Corner reconnect badge. Small, translucent, bottom-left by default so it
+ * stays out of typical capture compositions.
+ */
+.connection-banner {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-banner);
+  color: var(--color-text-primary);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+  transition: background var(--motion-fast);
+}
+
+.connection-banner:hover {
+  background: var(--color-bg-banner-hover);
+}
+
+.connection-banner__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-status-warn);
+  /* Gentle pulse while retrying; purely informational, no layout motion. */
+  animation: connection-banner-pulse var(--motion-medium) infinite alternate;
+}
+
+/* Terminal failures (bad token / unknown scene) don't pulse — nothing is
+   retrying, so the dot holds steady in the error colour. */
+.connection-banner[data-tone="error"] .connection-banner__dot {
+  background: var(--color-status-error);
+  animation: none;
+}
+
+/* Live event ticker — bottom-right, above reconnect banner. Transparency safe. */
+.overlay-ticker {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 60%;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(15, 18, 24, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(157, 192, 175, 0.22);
+  color: var(--color-text-primary);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  z-index: 5;
+}
+.overlay-ticker__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overlay-ticker__chip {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(157, 192, 175, 0.15);
+  color: #9dc0af;
+  white-space: nowrap;
+}
+.overlay-ticker__chip--study { background: rgba(87, 169, 123, 0.22); color: #8fceb0; }
+.overlay-ticker__chip--warn  { background: rgba(245, 185, 66, 0.18); color: #f5d58a; }
+.overlay-ticker__chip--follow{ background: rgba(107, 155, 214, 0.22); color: #8fb8e6; }
+.overlay-ticker__chip--cheer { background: rgba(168, 155, 216, 0.22); color: #bfb2e8; }
+.overlay-ticker__chip--sub   { background: rgba(212, 113, 78, 0.20); color: #ffb09a; }
+.overlay-ticker__chip--raid  { background: rgba(79, 179, 174, 0.22); color: #7fcdc9; }
+.overlay-ticker__chip--tip   { background: rgba(245, 185, 66, 0.22); color: #ffd580; }
+.overlay-ticker__chip--info  { background: rgba(138, 147, 142, 0.22); color: #c5cdc8; }
+.overlay-ticker__sim {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f5b942;
+  border: 1px dashed rgba(245, 185, 66, 0.5);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+@keyframes connection-banner-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Phase 4: placed widgets ────────────────────────────────────────────────
+ * The canvas is a fixed 1920×1080 surface scaled to fit the browser source,
+ * so OBS resolutions other than 1080p still get proportional rendering
+ * (normalised coordinates in the layout survive any canvas size).
+ */
+.overlay-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  /* Negative half-size margins keep the canvas centred as it scales. */
+  margin: -540px 0 0 -960px;
+}
+
+.overlay-cell {
+  position: absolute;
+}
+
+/* One placed widget: translucent dark card, sage border — matches the
+   dashboard's M3-expressive tonal surfaces so both look like one product. */
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(15, 18, 24, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(157, 192, 175, 0.22);
+  color: var(--color-text-primary);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.widget--compact {
+  padding: 12px 14px;
+  gap: 4px;
+}
+
+.widget__k {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9dc0af;
+}
+
+.widget__v {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.widget__timer {
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: #f2f5fa;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget__timer.is-paused {
+  color: #f5d58a;
+}
+
+.widget__clock {
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget__chip-text {
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.widget__sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget__empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.widget__goal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.widget__ring {
+  width: 64px;
+  height: 64px;
+  transform: rotate(-90deg);
+}
+
+.widget__ring-track,
+.widget__ring-fill {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.widget__ring-track {
+  stroke: rgba(157, 192, 175, 0.18);
+}
+
+.widget__ring-fill {
+  stroke: #57a97b;
+  transition: stroke-dashoffset var(--motion-medium);
+}
+
+.widget__ring-pct {
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.widget__list,
+.widget__activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.widget__list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.widget__list-main {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget__list-side {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.widget__activity li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.widget__activity-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget--unknown .widget__k {
+  color: var(--color-text-muted);
+}

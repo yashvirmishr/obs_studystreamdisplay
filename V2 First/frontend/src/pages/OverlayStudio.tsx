@@ -1,0 +1,451 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { Icon, type IconName } from "../design/icons";
+import { Snackbar } from "../design/primitives/Snackbar";
+import { api, isNormalisedPlacement, type LayoutPlacement } from "../services/api";
+
+type SceneId = "study" | "wait";
+type SaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
+
+interface PlacedWidget {
+  id: string;
+  label: string;
+  icon: IconName;
+  x: number; y: number; // normalised 0..1 of canvas
+  w: number; h: number; // normalised 0..1 of canvas
+  visible: boolean;
+  locked: boolean;
+  opacity: number; // 0..1
+  z: number;
+  variant: "timer" | "clock" | "chip" | "chat" | "media" | "goal" | "history" | "alert";
+}
+
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
+const px = (n: number, axis: "x" | "y") => Math.round(n * (axis === "x" ? CANVAS_W : CANVAS_H));
+
+const WIDGET_LIBRARY: Array<{ label: string; icon: IconName; desc: string; variant: PlacedWidget["variant"] }> = [
+  { label: "Study Timer", icon: "timer", desc: "Backend stopwatch · large display", variant: "timer" },
+  { label: "Session History", icon: "layers", desc: "Last completed sessions list", variant: "history" },
+  { label: "Subject & Task", icon: "goal", desc: "Current subject chip + task line", variant: "chip" },
+  { label: "Clock", icon: "clock", desc: "24 h clock with date", variant: "clock" },
+  { label: "Daily Goal Ring", icon: "goal", desc: "SVG ring · daily target", variant: "goal" },
+  { label: "YouTube Now Playing", icon: "music", desc: "Title · artist · progress", variant: "media" },
+  { label: "Unified Chat", icon: "chat", desc: "Twitch + Kick · badges · emotes", variant: "chat" },
+  { label: "Live Activity", icon: "bolt", desc: "Alerts · feed · ticker modes", variant: "alert" },
+];
+
+/** Default placements shipped with the app (used until the user saves). */
+function studyDefaults(): PlacedWidget[] {
+  return [
+    { id: "w-timer", label: "Study Timer", icon: "timer", x: 0.045, y: 0.70, w: 0.27, h: 0.17, visible: true, locked: false, opacity: 1, z: 10, variant: "timer" },
+    { id: "w-subject", label: "Subject & Task", icon: "goal", x: 0.045, y: 0.60, w: 0.27, h: 0.075, visible: true, locked: false, opacity: 1, z: 9, variant: "chip" },
+    { id: "w-now", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
+    { id: "w-clock", label: "Clock", icon: "clock", x: 0.845, y: 0.055, w: 0.12, h: 0.075, visible: true, locked: false, opacity: 1, z: 7, variant: "clock" },
+    { id: "w-chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
+  ];
+}
+function waitDefaults(): PlacedWidget[] {
+  return [
+    { id: "w-now", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
+    { id: "w-chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
+  ];
+}
+
+const SCENES: Record<SceneId, { label: string; defaults: () => PlacedWidget[] }> = {
+  study: { label: "Study", defaults: studyDefaults },
+  wait: { label: "Please Wait", defaults: waitDefaults },
+};
+
+const API_SCENE: Record<SceneId, string> = { study: "Study", wait: "Please Wait" };
+
+/**
+ * Display label → canonical widget registry id (backend app/widget_types.py).
+ * The old implementation slugified the label ("YouTube Now Playing" →
+ * "youtube_now_playing"), which never joined the registry's "now_playing" id
+ * and broke widget-type joins across studio/backend/overlay.
+ */
+const WIDGET_TYPE_BY_LABEL: Record<string, string> = {
+  "Study Timer": "study_timer",
+  "Session History": "session_history",
+  "Subject & Task": "subject_task",
+  Clock: "clock",
+  "Daily Goal Ring": "goal_ring",
+  "YouTube Now Playing": "now_playing",
+  "Unified Chat": "unified_chat",
+  "Live Activity": "live_activity",
+};
+
+function toApiPlacement(w: PlacedWidget): LayoutPlacement {
+  return {
+    instance_name: w.id,
+    widget_type: WIDGET_TYPE_BY_LABEL[w.label] ?? w.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    position_x: w.x,
+    position_y: w.y,
+    width: w.w,
+    height: w.h,
+    z_index: w.z,
+    visible: w.visible,
+    locked: w.locked,
+    opacity: w.opacity,
+    label: w.label,
+    variant: w.variant,
+  };
+}
+
+function fromApiPlacement(p: LayoutPlacement): PlacedWidget {
+  // Match by label first, then by canonical widget_type so layouts saved by
+  // older builds (with slug ids) still map onto the right library entry.
+  const known =
+    WIDGET_LIBRARY.find((w) => w.label === p.label) ??
+    WIDGET_LIBRARY.find((w) => WIDGET_TYPE_BY_LABEL[w.label] === p.widget_type);
+  return {
+    id: p.instance_name,
+    label: p.label || p.instance_name,
+    icon: known?.icon ?? "widgets",
+    x: p.position_x,
+    y: p.position_y,
+    w: p.width,
+    h: p.height,
+    visible: p.visible,
+    locked: p.locked,
+    opacity: p.opacity ?? 1,
+    z: p.z_index,
+    variant: (p.variant as PlacedWidget["variant"]) || "chip",
+  };
+}
+
+export default function OverlayStudio() {
+  const [scene, setScene] = useState<SceneId>("study");
+  const [widgets, setWidgets] = useState<PlacedWidget[]>(() => studyDefaults());
+  const [selectedId, setSelectedId] = useState<string | null>("w-timer");
+  const [showGrid, setShowGrid] = useState(true);
+  const [showGuides, setShowGuides] = useState(true);
+  const [snap, setSnap] = useState(true);
+  const [snack, setSnack] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ id: string; mode: "move" | "resize"; startX: number; startY: number; origin: PlacedWidget } | null>(null);
+  const dirtyRef = useRef(false);
+  const saveTimer = useRef<number | null>(null);
+
+  const selected = widgets.find((w) => w.id === selectedId) ?? null;
+
+  /** Load a scene from the backend; null layout → built-in defaults (unsaved). */
+  const loadScene = useCallback(async (next: SceneId) => {
+    // Cancel any pending save before swapping scenes — otherwise the timer
+    // would fire against the NEW scene's widgets and write them into the
+    // OLD scene's layout.
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    setScene(next);
+    dirtyRef.current = false;
+    setSaveState("idle");
+    setSnack(null);
+    try {
+      const res = await api.scenes.getLayout(API_SCENE[next]);
+      if (res.placements && res.placements.length > 0 && res.placements.every(isNormalisedPlacement)) {
+        const mapped = res.placements.map(fromApiPlacement);
+        setWidgets(mapped);
+        setSelectedId(mapped[0]?.id ?? null);
+        setSaveState("saved");
+        setLastSavedAt(new Date().toLocaleTimeString());
+        return;
+      }
+    } catch {
+      // Backend unreachable or scene missing — fall back to defaults.
+    }
+    const defaults = SCENES[next].defaults();
+    setWidgets(defaults);
+    setSelectedId(defaults[0]?.id ?? null);
+  }, []);
+
+  // Initial load (and on scene switch).
+  useEffect(() => {
+    void loadScene("study");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const widgetsRef = useRef<PlacedWidget[]>(widgets);
+  useEffect(() => {
+    widgetsRef.current = widgets;
+  }, [widgets]);
+
+  /** Debounced persist of dirty layouts. Snapshot is taken at fire time —
+   *  never inside a state updater (StrictMode double-invokes updaters). */
+  const scheduleSave = useCallback(() => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    setSaveState("unsaved");
+    saveTimer.current = window.setTimeout(() => {
+      setSaveState("saving");
+      const snapshot = widgetsRef.current.map(toApiPlacement).filter(isNormalisedPlacement);
+      api.scenes.putLayout(API_SCENE[scene], snapshot)
+        .then(() => {
+          dirtyRef.current = false;
+          setSaveState("saved");
+          setLastSavedAt(new Date().toLocaleTimeString());
+        })
+        .catch(() => setSaveState("error"));
+    }, 800);
+  }, [scene]);
+
+  const mutate = useCallback((fn: (ws: PlacedWidget[]) => PlacedWidget[]) => {
+    setWidgets((ws) => fn(ws));
+    dirtyRef.current = true;
+    scheduleSave();
+  }, [scheduleSave]);
+
+  const addWidget = (label: string, icon: IconName, variant: PlacedWidget["variant"]) => {
+    const id = `w-${Date.now().toString(36)}`;
+    mutate((ws) => [
+      ...ws,
+      { id, label, icon, x: 0.06 + (ws.length % 5) * 0.03, y: 0.08 + (ws.length % 5) * 0.04, w: 0.22, h: 0.12, visible: true, locked: false, opacity: 1, z: 20 + ws.length, variant },
+    ]);
+    setSelectedId(id);
+    setSnack(`${label} placed on “${SCENES[scene].label}” — drag to position.`);
+  };
+
+  const duplicateSelected = () => {
+    if (!selected) return;
+    const id = `w-${Date.now().toString(36)}`;
+    mutate((ws) => [
+      ...ws,
+      { ...selected, id, x: Math.min(0.9, selected.x + 0.02), y: Math.min(0.9, selected.y + 0.02), z: selected.z + 1 },
+    ]);
+    setSelectedId(id);
+  };
+
+  const removeSelected = useCallback(() => {
+    setSelectedId(null);
+    mutate((ws) => ws.filter((w) => w.id !== selectedId));
+    setSnack("Widget removed.");
+  }, [mutate, selectedId]);
+
+  const updateSelected = useCallback((patch: Partial<PlacedWidget>) => {
+    mutate((ws) => ws.map((w) => (w.id === selectedId ? { ...w, ...patch } : w)));
+  }, [mutate, selectedId]);
+
+  const onPointerDown = (e: ReactPointerEvent, w: PlacedWidget, mode: "move" | "resize") => {
+    if (w.locked) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { id: w.id, mode, startX: e.clientX, startY: e.clientY, origin: w };
+    setSelectedId(w.id);
+  };
+
+  const onPointerMove = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    const stage = stageRef.current;
+    if (!drag || !stage) return;
+    const rect = stage.getBoundingClientRect();
+    const dx = (e.clientX - drag.startX) / rect.width;
+    const dy = (e.clientY - drag.startY) / rect.height;
+    mutate((ws) => ws.map((w) => {
+      if (w.id !== drag.id) return w;
+      const o = drag.origin;
+      if (drag.mode === "move") {
+        let nx = o.x + dx;
+        let ny = o.y + dy;
+        if (snap) { nx = Math.round(nx * 24) / 24; ny = Math.round(ny * 24) / 24; }
+        return { ...w, x: Math.min(Math.max(nx, 0), 1 - w.w), y: Math.min(Math.max(ny, 0), 1 - w.h) };
+      }
+      let nw = o.w + dx;
+      let nh = o.h + dy;
+      if (snap) { nw = Math.round(nw * 24) / 24; nh = Math.round(nh * 24) / 24; }
+      return { ...w, w: Math.min(Math.max(nw, 0.06), 1 - w.x), h: Math.min(Math.max(nh, 0.04), 1 - w.y) };
+    }));
+  };
+
+  const onPointerUp = (e: ReactPointerEvent) => {
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    dragRef.current = null;
+  };
+
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    // Ignore keystrokes while focus is in a text field / select so typing
+    // into inputs never nudges the canvas.
+    const target = e.target as HTMLElement | null;
+    if (target) {
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
+    }
+    if (!selected || selected.locked) return;
+    const step = e.shiftKey ? 0.002 : 0.01;
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step],
+    };
+    if (e.key in moves) {
+      e.preventDefault();
+      const [dx, dy] = moves[e.key];
+      mutate((ws) => ws.map((w) => (w.id === selected.id ? { ...w, x: Math.min(Math.max(w.x + dx, 0), 1 - w.w), y: Math.min(Math.max(w.y + dy, 0), 1 - w.h) } : w)));
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      removeSelected();
+    }
+  }, [selected, mutate, removeSelected]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onKeyDown]);
+
+  const sorted = useMemo(() => [...widgets].sort((a, b) => a.z - b.z), [widgets]);
+
+  const saveHint =
+    saveState === "saving" ? "Saving…"
+    : saveState === "saved" ? `Saved ${lastSavedAt ?? ""}`
+    : saveState === "error" ? "Save failed — backend unreachable?"
+    : saveState === "unsaved" ? "Unsaved changes…"
+    : "Layout not persisted yet";
+
+  return (
+    <div className="page">
+      <div className="studio-toolbar reveal">
+        {(Object.keys(SCENES) as SceneId[]).map((id) => (
+          <button key={id} type="button" className={`scene-chip${scene === id ? " active" : ""}`} onClick={() => void loadScene(id)}>
+            {SCENES[id].label}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 22, background: "var(--ss-surface-container-highest)", margin: "0 4px" }} />
+        <button type="button" className={`tool-btn${showGrid ? " toggled" : ""}`} aria-pressed={showGrid} title="Toggle dot grid" onClick={() => setShowGrid(v => !v)}>
+          <Icon name="grid" size={17} />
+        </button>
+        <button type="button" className={`tool-btn${showGuides ? " toggled" : ""}`} aria-pressed={showGuides} title="Toggle centre guides" onClick={() => setShowGuides(v => !v)}>
+          <Icon name="layers" size={17} />
+        </button>
+        <button type="button" className={`tool-btn${snap ? " toggled" : ""}`} aria-pressed={snap} title="Snap to grid (1/24)" onClick={() => setSnap(v => !v)}>
+          <Icon name="shield" size={17} />
+        </button>
+        <span style={{ marginLeft: "auto", fontSize: 11, color: saveState === "error" ? "#d9a24e" : "var(--ss-color-text-faint)", fontFamily: "var(--ss-font-mono)" }} role="status">{saveHint}</span>
+      </div>
+
+      <div className="studio reveal" style={{ animationDelay: "60ms" }} tabIndex={0} aria-label="Overlay editor workspace">
+        {/* ── Widget library ── */}
+        <aside className="panel" aria-label="Widget library">
+          <div className="panel-head">
+            <h3><Icon name="widgets" size={15} /> Widget library</h3>
+            <p>Click to place into “{SCENES[scene].label}” · layout persists to SQLite</p>
+          </div>
+          <div className="panel-body">
+            {WIDGET_LIBRARY.map((w) => (
+              <button key={w.label} type="button" className="widget-pick" onClick={() => addWidget(w.label, w.icon, w.variant)}>
+                <Icon name={w.icon} size={20} />
+                <span>
+                  {w.label}
+                  <small>{w.desc}</small>
+                </span>
+                <Icon name="plus" size={16} className="add" />
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* ── Canvas stage ── */}
+        <div className="stage-wrap">
+          <div
+            ref={stageRef}
+            className="stage"
+            style={showGrid ? undefined : { backgroundImage: "none", background: "#070a09" }}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onClick={() => setSelectedId(null)}
+            role="application"
+            aria-label={`${SCENES[scene].label} scene canvas, 1920 by 1080`}
+          >
+            {showGuides && <><div className="crosshair h" /><div className="crosshair v" /></>}
+            {sorted.map((w) => (
+              <div
+                key={w.id}
+                className={`placed${w.id === selectedId ? " selected" : ""}${w.locked ? " locked" : ""}`}
+                style={{
+                  left: `${w.x * 100}%`, top: `${w.y * 100}%`, width: `${w.w * 100}%`, height: `${w.h * 100}%`,
+                  zIndex: w.z, opacity: w.opacity, visibility: w.visible ? "visible" : "hidden",
+                }}
+                onPointerDown={(e) => onPointerDown(e, w, "move")}
+                onClick={(e) => { e.stopPropagation(); setSelectedId(w.id); }}
+                role="button"
+                aria-label={`${w.label} widget`}
+              >
+                {w.variant === "timer" && <><span className="k">Study session</span><span className="v display">00:00:00</span></>}
+                {w.variant === "clock" && <><span className="k">Clock</span><span className="v">{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></>}
+                {w.variant === "chip" && <><span className="k">Subject &amp; task</span><span className="v" style={{ fontFamily: "var(--ss-font-body)", fontWeight: 600, fontSize: "clamp(10px,1.1vw,15px)" }}>No task set</span></>}
+                {w.variant === "chat" && <><span className="k">Live chat · Twitch + Kick</span><span className="v" style={{ fontSize: "clamp(9px,1vw,13px)", lineHeight: 1.6, fontFamily: "var(--ss-font-body)", color: "var(--ss-color-text-faint)" }}>awaiting messages…</span></>}
+                {w.variant === "media" && <><span className="k">Now playing</span><span className="v" style={{ fontSize: "clamp(10px,1.15vw,15px)", fontFamily: "var(--ss-font-body)", fontWeight: 600, color: "var(--ss-color-text-faint)" }}>nothing detected</span></>}
+                {w.variant === "history" && <><span className="k">Session history</span><span className="v" style={{ fontSize: "clamp(9px,1vw,12px)", fontFamily: "var(--ss-font-body)", color: "var(--ss-color-text-faint)" }}>no completed sessions yet</span></>}
+                {w.variant === "goal" && <><span className="k">Daily goal</span><span className="v">0%</span></>}
+                {w.variant === "alert" && <><span className="k">Live activity</span><span className="v" style={{ fontSize: "clamp(10px,1.1vw,14px)", fontFamily: "var(--ss-font-body)", color: "var(--ss-color-text-faint)" }}>no events yet</span></>}
+                {w.id === selectedId && !w.locked && (
+                  <div className="resize-handle" onPointerDown={(e) => onPointerDown(e, w, "resize")} aria-hidden="true" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="stage-toolbar">
+            <span className="meta">1920×1080 · normalised coords · {widgets.length} widgets</span>
+            <div className="spacer" />
+            <button type="button" className="tool-btn" title="Duplicate selected" onClick={duplicateSelected} disabled={!selected}>
+              <Icon name="copy" size={16} />
+            </button>
+            <button type="button" className="tool-btn" title="Remove selected" onClick={removeSelected} disabled={!selected}>
+              <Icon name="trash" size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Properties ── */}
+        <aside className="panel" aria-label="Widget properties">
+          <div className="panel-head">
+            <h3><Icon name="layers" size={15} /> Properties</h3>
+            <p>{selected ? `“${selected.label}” · layer ${selected.z}` : "Select a widget on the canvas"}</p>
+          </div>
+          <div className="panel-body">
+            {selected && (
+              <>
+                <div className="prop-row"><label htmlFor="px-x">X</label><div className="prop-value" id="px-x">{px(selected.x, "x")} px · {(selected.x * 100).toFixed(1)}%</div></div>
+                <div className="prop-row"><label htmlFor="px-y">Y</label><div className="prop-value" id="px-y">{px(selected.y, "y")} px · {(selected.y * 100).toFixed(1)}%</div></div>
+                <div className="prop-row"><label htmlFor="px-w">Width</label><div className="prop-value" id="px-w">{px(selected.w, "x")} px · {(selected.w * 100).toFixed(1)}%</div></div>
+                <div className="prop-row"><label htmlFor="px-h">Height</label><div className="prop-value" id="px-h">{px(selected.h, "y")} px · {(selected.h * 100).toFixed(1)}%</div></div>
+                <div className="prop-row">
+                  <label htmlFor="px-op">Opacity</label>
+                  <input id="px-op" type="range" min={20} max={100} value={Math.round(selected.opacity * 100)} className="range"
+                    onChange={(e) => updateSelected({ opacity: Number(e.target.value) / 100 })} />
+                </div>
+                <div className="prop-row">
+                  <label htmlFor="px-vis">Visible</label>
+                  <button id="px-vis" type="button" className="switch" role="switch" aria-checked={selected.visible} aria-label="Toggle visibility"
+                    onClick={() => updateSelected({ visible: !selected.visible })} />
+                </div>
+                <div className="prop-row">
+                  <label htmlFor="px-lock">Locked</label>
+                  <button id="px-lock" type="button" className="switch" role="switch" aria-checked={selected.locked} aria-label="Toggle lock"
+                    onClick={() => updateSelected({ locked: !selected.locked })} />
+                </div>
+                <div className="prop-row" style={{ borderBottom: 0 }}>
+                  <label htmlFor="px-z">Layer</label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button type="button" className="tool-btn" style={{ width: 30, height: 30 }} title="Bring forward"
+                      onClick={() => updateSelected({ z: selected.z + 1 })}><Icon name="layers" size={15} /></button>
+                    <button type="button" className="tool-btn" style={{ width: 30, height: 30 }} title="Send backward"
+                      onClick={() => updateSelected({ z: Math.max(1, selected.z - 1) })}><Icon name="chevronRight" size={15} style={{ transform: "rotate(-90deg)" }} /></button>
+                  </div>
+                </div>
+                <p style={{ fontSize: 10.5, color: "var(--ss-color-text-faint)", lineHeight: 1.5, marginTop: 12 }}>
+                  Arrow keys nudge the selection · Shift nudges by fine steps · Delete removes · layout auto-saves to SQLite (debounced 800 ms); positions are normalised, so any OBS resolution renders proportionally.
+                </p>
+              </>
+            )}
+            {!selected && <p style={{ color: "var(--ss-color-text-muted)", fontSize: 12 }}>Nothing selected. Click any widget on the canvas.</p>}
+          </div>
+        </aside>
+      </div>
+
+      {snack && <Snackbar message={snack} onDismiss={() => setSnack(null)} />}
+    </div>
+  );
+}

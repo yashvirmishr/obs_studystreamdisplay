@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "studystream2/event-envelope/v1",
+  "title": "StudyStream2 normalised event envelope",
+  "description": "Every integration adapter converts provider events into this shape. Widgets receive only envelopes. See docs/ARCHITECTURE.md invariant 6.",
+  "type": "object",
+  "required": ["schema_version", "event_id", "event_type", "source", "occurred_at", "received_at", "payload"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": {
+      "type": "string",
+      "description": "Unique per event. Adapters must generate; dedup engine may replace with provider-native ID when available."
+    },
+    "event_type": {
+      "enum": [
+        "chat.message",
+        "chat.deleted",
+        "chat.moderation",
+        "stream.follow",
+        "stream.cheer",
+        "stream.subscription",
+        "stream.gift_subscription",
+        "stream.raid",
+        "stream.gift",
+        "donation.tip",
+        "study.session.started",
+        "study.session.paused",
+        "study.session.stopped",
+        "media.now_playing.updated",
+        "system.connection.changed",
+        "system.test_event"
+      ]
+    },
+    "source": {
+      "enum": ["twitch", "kick", "youtube", "streamelements", "study", "system", "test"]
+    },
+    "channel": { "type": "string" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" },
+    "is_simulated": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for Test Event button traffic. Simulated events MUST carry this flag and MUST be visually marked in every widget. Never merge simulated history with real history without this distinction."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event_type": { "const": "chat.message" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["username", "platform", "fragments"],
+            "properties": {
+              "username": { "type": "string" },
+              "platform": { "enum": ["twitch", "kick", "youtube"] },
+              "fragments": {
+                "type": "array",
+                "description": "Ordered text/emote fragments. Renderers must preserve order.",
+                "items": {
+                  "oneOf": [
+                    { "type": "object", "required": ["type", "text"], "properties": { "type": { "const": "text" }, "text": { "type": "string" } } },
+                    { "type": "object", "required": ["type", "emote_id", "text"], "properties": { "type": { "const": "emote" }, "emote_id": { "type": "string" }, "text": { "type": "string" } } },
+                    { "type": "object", "required": ["type", "url", "text"], "properties": { "type": { "const": "emoji_image" }, "url": { "type": "string", "format": "uri" }, "text": { "type": "string" } } }
+                  ]
+                }
+              },
+              "badges": {
+                "type": "array",
+                "items": { "enum": ["moderator", "subscriber", "vip", "broadcaster", "verified", "gilded", "other"] }
+              },
+              "username_color": { "type": "string" },
+              "message_id": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "donation.tip" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["donor_name", "amount", "currency"],
+            "properties": {
+              "donor_name": { "type": "string" },
+              "amount": { "type": "number", "exclusiveMinimum": 0 },
+              "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+              "message": { "type": "string" },
+              "avatar_url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "stream.cheer" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["username", "bits"],
+            "properties": {
+              "username": { "type": "string" },
+              "bits": { "type": "integer", "exclusiveMinimum": 0 },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "stream.follow" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["username", "platform"],
+            "properties": {
+              "username": { "type": "string" },
+              "platform": { "enum": ["twitch", "kick"] },
+              "avatar_url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "stream.raid" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["from_channel", "viewers"],
+            "properties": {
+              "from_channel": { "type": "string" },
+              "viewers": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "media.now_playing.updated" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["title", "channel"],
+            "properties": {
+              "title": { "type": "string" },
+              "channel": { "type": "string" },
+              "thumbnail_url": { "type": "string", "format": "uri" },
+              "video_url": { "type": "string", "format": "uri" },
+              "is_playing": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Tauri on Windows requires the MSVC toolchain: the machine default
+# (x86_64-pc-windows-gnu) cannot produce import libraries for windows-sys
+# (missing dlltool.exe), and WebView2 loader linking expects MSVC.
+# Pinning the full triple keeps `cargo check`/`tauri dev` consistent.
+[toolchain]
+channel = "stable-x86_64-pc-windows-msvc"

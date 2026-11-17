@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+*.db-wal
+*.db-shm
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Tauri / Rust
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Packaging / build outputs (regenerable; the sidecar exe is ~24 MB)
+backend/build/
+overlay-dist/
+desktop/src-tauri/binaries/
+*-DELETE-ME/

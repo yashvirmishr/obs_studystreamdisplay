@@ -1,0 +1,22 @@
+[package]
+name = "studystream2"
+version = "0.1.0"
+description = "Study Stream 2.0 desktop shell"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+# Blocking HTTP client used only by the readiness poller thread; avoids
+# pulling tokio/reqwest into the shell for one GET request.
+ureq = "2"
+# Cryptographically secure random bytes for the per-launch auth token.
+rand = "0.8"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
