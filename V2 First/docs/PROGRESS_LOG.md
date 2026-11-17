@@ -477,3 +477,12 @@ killed. Ports free after testing.
 - sidecar + installer rebuilt again (26.37 MiB at 19:13) so the shipped
   bundle embeds the new overlay. OBS Browser Sources need one manual
   refresh (asset hashes changed again).
+
+## 2026-11-17 - White edge line fix
+
+- html/body/#root had no background-color (only .ss-ambient did), so the
+  browser's default white page leaked at the outermost pixels and through
+  the scrollbar gutter - the "weird white line around the edges". Fixed in
+  app.css and verified via vite preview + agent-browser (no sliver).
+- Installer rebuilt with the fix. If a 1 px line still appears at the very
+  corner after this, it is the Windows DWM window frame, not app content.

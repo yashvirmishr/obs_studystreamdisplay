@@ -1,7 +1,7 @@
 /* Study Stream 2.0 — app shell & page surfaces (Material 3 Expressive) */
 @import "../design/tokens.css";
 
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; background: var(--ss-color-surface-background); }
 
 .ss-ambient {
   background-image: var(--ss-ambient-glow);

@@ -216,3 +216,11 @@ Note: backend startup now logs "applying database migrations... database is up t
 | Q2 | npm audit: zero vulnerabilities in both apps (advisory GHSA-67mh-4wv8-2f99 gone) | ✅ done | `npm audit` output in both dirs |
 | Q3 | overlay bundle rebuilt + served live (index-CfM3a5Ma.js); widgets render from the fresh bundle | ✅ verified live | agent-browser snapshot: NO ACTIVE SESSION / DAILY GOAL / SESSION HISTORY present; served HTML references the new hash |
 | Q4 | sidecar + installer rebuilt with the fresh bundle | ✅ done | 26.37 MiB at 19:13; X: unmounted after |
+
+## R. White edge line fix (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| R1 | White sliver around the window: html/body never got a dark background (only .ss-ambient painted dark; the browser's default page background leaked at the outermost 1-2 px) | ✅ fixed | app.css: html, body, #root now paint var(--ss-color-surface-background); verified via vite preview + agent-browser screenshot (no edge sliver at viewport edges) |
+| R2 | Installer rebuilt with the fix | ✅ done | 26.37 MiB; OBS refresh not needed (this change does not touch the overlay bundle) |
+| R3 | Remaining edge line, if any, is the Windows DWM rounded-corner frame, not app content; cosmetic and external to the app | noted | only removable by frameless mode (tauri decorations=false) or Windows accent-border setting |
