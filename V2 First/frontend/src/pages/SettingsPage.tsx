@@ -127,7 +127,7 @@ export default function SettingsPage() {
                 <dt>Database</dt><dd>%LOCALAPPDATA%\com.yashvir.studystream2\studystream.db</dd>
                 <dt>Schema version</dt><dd>0004_study_session_index</dd>
                 <dt>Migrations</dt><dd>Alembic · forward-only · applied 0001 → 0004 (runs at backend startup)</dd>
-                <dt>Event history</dt><dd>retained · configurable retention (Phase 6)</dd>
+                <dt>Event history</dt><dd>retained · STUDYSTREAM_EVENT_RETENTION_DAYS (default 30)</dd>
                 <dt>Session logs</dt><dd>%LOCALAPPDATA%\com.yashvir.studystream2\logs\</dd>
                 <dt>V1 migration</dt><dd>none — clean greenfield install</dd>
               </div>

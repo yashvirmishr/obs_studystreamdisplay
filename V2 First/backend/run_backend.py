@@ -36,6 +36,25 @@ def main() -> None:
         )
         raise SystemExit(1)
 
+    # Event retention: one pass before serving. Failure logs and continues —
+    # retention is hygiene, not correctness (an aborted prune must never
+    # brick the app). activity_history is never touched.
+    try:
+        from app.database import SessionLocal
+        from app.retention import prune_old_events
+
+        with SessionLocal() as db:
+            pruned = prune_old_events(db, settings.event_retention_days)
+            db.commit()
+        if pruned:
+            logger.info(
+                "event retention: pruned %d events older than %d days",
+                pruned,
+                settings.event_retention_days,
+            )
+    except Exception:
+        logger.exception("event retention failed; continuing (hygiene, not correctness)")
+
     logger.info(
         "Starting backend on %s:%s (auth token: %s)",
         settings.host,

@@ -41,6 +41,15 @@ def _read_env() -> tuple[int, str | None]:
     return port, token
 
 
+def _retention_days() -> int:
+    """Event-log retention horizon in days. `0` disables pruning."""
+    raw = os.environ.get("STUDYSTREAM_EVENT_RETENTION_DAYS", "30")
+    try:
+        return int(raw)
+    except ValueError:
+        return 30
+
+
 @dataclass(frozen=True)
 class Settings:
     host: str = HOST
@@ -50,6 +59,7 @@ class Settings:
     )
     cors_origins: tuple[str, ...] = LOCAL_ORIGINS
     auth_token: str | None = None
+    event_retention_days: int = _retention_days()
 
     def token_matches(self, supplied: str | None) -> bool:
         """Constant-shape comparison; missing token never matches."""

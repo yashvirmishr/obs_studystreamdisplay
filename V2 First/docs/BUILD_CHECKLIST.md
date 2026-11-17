@@ -71,7 +71,7 @@ Legend: ✅ verified on Windows 11 (evidence) · 🧪 implemented + tested via a
 - ⬜ Phase 2+ features: actual dashboard data density polish, Phase 4 widget registry endpoints, Phase 5 chat (StreamElements), Phase 6 events wiring, Phase 7 study integration into overlay, OBS CEF rendering test
 - ✅ ~~Frontend dist is stale vs. current source~~ (rebuilt 2026-11-15, `tsc` + vite exit 0 — includes eventText dedupe + probe cleanup)
 - ⬜ Light theme token pass (dark-first shipped)
-- ⬜ 2 browser advisories in overlay/ dev deps (transitive, dev-only)
+- Known and accepted (dev-only): overlay/ and frontend/ each report 1 moderate + 1 high esbuild/vite advisory (GHSA-67mh-4wv8-2f99 class). The vulnerable esbuild only runs in the vite DEV SERVER on 127.0.0.1 during development; the Tauri app and OBS load static built assets. Fix forces vite 5 -> 8 (rolldown/OXC toolchain) - out of scope as a tail-of-session jump; scheduled as its own migration. Do NOT run npm audit fix --force blindly.
 - ✅ OBS overlay URL card on Overview: per-scene picker chips (Study / Please Wait from GET /api/v1/scenes) drive the overlay-url fetch - done 2026-11-17 (agent-browser verified: Study default, Please Wait chip switched URL to the Please Wait scene token)
 - ✅ Widgets page toggles vs. per-scene placements: layers unambiguous - Overlay Studio (placements) decides whether/where a widget exists on a scene; the global enabled_widgets page is a cross-scene kill switch filtering placements in the overlay (null = all enabled). Applied live via overlay.widgets_updated (2026-11-17). See section J
 
@@ -169,3 +169,12 @@ Note: backend startup now logs "applying database migrations... database is up t
 | L2 | Packaged DB dir: shell app_local_data_dir() -> %LOCALAPPDATA%/com.yashvir.studystream2/studystream.db (matches Settings page claim; keeps a local-only DB out of roaming) | ✅ done | main.rs change; installer rebuilt |
 | L3 | Settings Storage pane stale schema claims (0002, "applied 0001 -> 0002") corrected; About pane stale claims (phase, 21.5 MB, Alembic 0001-0003) corrected | ✅ done | verified rendering via agent-browser snapshot |
 | L4 | Installer rebuilt with shell change | ✅ done | 26.19 MiB at 12:46; X: unmounted after |
+
+## M. Event retention + accepted advisories + honesty sweep (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| M1 | `events` table grew unboundedly; added retention: `STUDYSTREAM_EVENT_RETENTION_DAYS` (default 30, 0 disables) applied once at backend startup; `activity_history` untouched (SET NULL FK keeps the human-readable record); retention failure logs and does NOT abort startup | ✅ done + tests | app/retention.py, run_backend.py startup hook; test_retention.py: old pruned / recent kept / history survives with SET NULL; 37 -> 39 passed |
+| M2 | Fresh code shipped: sidecar + installer rebuilt with retention | ✅ done | 26.20 MiB at 12:57; X: unmounted after |
+| M3 | overlay/ + frontend/ advisories (esbuild <=0.24.2 dev-server-only): assessed, documented as accepted exception; `npm audit fix --force` (vite 8 rolldown/OXC) deferred to a dedicated migration; not a production-surface issue | ✅ documented | BUILD_CHECKLIST section E + PROGRESS_LOG |
+| M4 | Settings Storage row now states the real retention knob instead of "(Phase 6)" | ✅ done | rendered text verified; js hash index-B7sIv9ow.js |

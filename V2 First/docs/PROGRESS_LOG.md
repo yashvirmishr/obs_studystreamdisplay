@@ -399,3 +399,28 @@ killed. Ports free after testing.
 - Frontend build exit 0; installer rebuilt (26.19 MiB, 12:46:07) via subst
   X: (X: unmounted after). Backend unchanged this slice; dev backend on
   47831 serves the current code (37 tests passed).
+
+## Dev server advisories (accepted exception, 2026-11-17)
+
+- GHSA-67mh-4wv8-2f99 (esbuild <=0.24.2, moderate+high via vite <=6.4.3):
+  affects only the vite DEV SERVER binding 127.0.0.1 at dev time. Production
+  surface (Tauri webview + OBS Browser Sources) serves static built assets
+  and never runs the dev server. The fix (vite 8 / rolldown-OXC) is a
+  toolchain migration for BOTH apps and must not ride a feature session;
+  queued as a release-blocker decision in Phase 8. No `npm audit fix
+  --force` until that migration is planned and verified end to end.
+
+## 2026-11-17 - Event retention + accepted advisories + honesty sweep
+
+- events table had no pruning at all. Added STUDYSTREAM_EVENT_RETENTION_DAYS
+  (default 30, 0 disables) applied once at startup (hygiene, non-fatal);
+  activity_history never pruned; SET NULL verified by test. New tests:
+  test_prune_old_events_keeps_history_and_recent, test_prune_disabled_with_zero.
+  Suite 37 -> 39 passed.
+- Dev-server advisories (esbuild/vite) assessed + documented as accepted
+  (dev-only, 127.0.0.1, never ships); vite 8 migration queued as the real
+  fix for release planning. No blind npm audit fix --force.
+- Settings Storage row shows the actual retention knob. Sidecar + installer
+  rebuilt again (26.20 MiB at 12:57). Dev backend on 47831 restarted with
+  retention in place (verified 0 rows pruned at startup - correct for a
+  young dev DB) and is serving.

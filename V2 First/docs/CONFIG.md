@@ -8,7 +8,8 @@ Every knob this system reads from the environment, in one place.
 |---|---|---|---|
 | `STUDYSTREAM_PORT` | `47831` | `backend/app/config.py` | TCP port to bind. Non-numeric or `0` falls back to default. |
 | `STUDYSTREAM_AUTH_TOKEN` | _(none)_ | same | 256-bit per-launch credential. Missing ⇒ **fail closed**: every `/api/v1/*` returns 401 and WS closes with 4401. Tauri shell generates this fresh every launch; it never touches disk. |
-| `STUDYSTREAM_DATABASE_URL` | `sqlite:///./studystream.db` | same | SQLAlchemy URL. Tests point this at a tmp file to avoid polluting the real database. The packaged shell overrides this with `sqlite:///<app-data-dir>/studystream.db` so the production DB never lands next to the installed exe. |
+| `STUDYSTREAM_DATABASE_URL` | `sqlite:///./studystream.db` | same | SQLAlchemy URL. Tests point this at a tmp file to avoid polluting the real database. The packaged shell overrides this with `sqlite:///<local-app-data-dir>/studystream.db` so the production DB never lands next to the installed exe. |
+| `STUDYSTREAM_EVENT_RETENTION_DAYS` | `30` | same | Event-log retention applied once at backend startup (`run_backend.py`): rows in `events` older than this are deleted. `0` disables pruning. `activity_history` is never pruned. Hygiene, not correctness: failure is logged and does not abort startup. |
 | — | — | `run_backend.py` | Alembic `upgrade head` runs at startup (dev and packaged) before uvicorn; failure exits 1 so the shell reports the early exit. |
 | `STUDYSTREAM_PORT` is also honoured by `desktop/scripts/build-backend-sidecar.ps1` indirectly via PyInstaller? No — it's read at **runtime** only. |
 
