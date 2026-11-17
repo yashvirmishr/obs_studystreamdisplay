@@ -146,6 +146,7 @@ export interface AppSettings {
 }
 
 export type LayoutPlacement = Required<Schemas["Placement"]>;
+export type WidgetRegistryEntry = Schemas["WidgetRegistryEntry"];
 
 /**
  * Normalised placement coordinate guard — the single invariant that must
@@ -233,6 +234,11 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ values }),
       }),
+  },
+
+  widgets: {
+    /** The canonical widget catalog — one source of truth for both pages. */
+    registry: () => request<Schemas["WidgetRegistryResponse"]>("/api/v1/widgets/registry"),
   },
 
   scenes: {

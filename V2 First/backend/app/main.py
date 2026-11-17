@@ -27,6 +27,7 @@ from app.api.events import router as events_router
 from app.api.settings import router as settings_router
 from app.api.integrations import router as integrations_router
 from app.api.scenes import router as scenes_router
+from app.api.widgets import router as widgets_router
 from app.config import settings
 from app.events.bus import bus
 from app.security.auth import LaunchAuthMiddleware, overlay_token_for, overlay_token_matches_scene, supplied_ws_token
@@ -76,6 +77,7 @@ app.include_router(events_router)
 app.include_router(settings_router)
 app.include_router(integrations_router)
 app.include_router(scenes_router)
+app.include_router(widgets_router)
 
 
 @app.get("/api/v1/obs/overlay-url", response_model=ObsOverlayUrl)

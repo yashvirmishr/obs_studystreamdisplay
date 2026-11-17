@@ -118,6 +118,19 @@ class LayoutUpdate(BaseModel):
     placements: list[Placement] = Field(default_factory=list, max_length=100)
 
 
+class WidgetRegistryEntry(BaseModel):
+    id: str
+    name: str
+    category: str
+    desc: str
+    icon: str
+    variant: str
+
+
+class WidgetRegistryResponse(BaseModel):
+    widgets: list[WidgetRegistryEntry]
+
+
 class LayoutResponse(BaseModel):
     scene: str
     placements: list[Placement] | None = None

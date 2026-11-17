@@ -27,6 +27,22 @@ WIDGET_TYPES: dict[str, str] = {
     "live_activity": "Live Activity",
 }
 
+#: Full presentation metadata for each registry entry, served by
+#: GET /api/v1/widgets/registry so the dashboard's Widgets page and Overlay
+#: Studio render ONE catalog instead of two hand-maintained copies. Icons are
+#: names from the frontend design-system icon set; category and variant are
+#: product facts about the widget.
+WIDGET_REGISTRY: list[dict[str, str]] = [
+    {"id": "study_timer", "name": "Study Timer", "category": "Study", "desc": "Backend-authoritative stopwatch with pause/resume and daily totals.", "icon": "timer", "variant": "timer"},
+    {"id": "subject_task", "name": "Subject & Task", "category": "Study", "desc": "Current subject chip and task line for the running session.", "icon": "goal", "variant": "chip"},
+    {"id": "session_history", "name": "Session History", "category": "Study", "desc": "Last N completed sessions with durations and subjects.", "icon": "layers", "variant": "history"},
+    {"id": "clock", "name": "Clock", "category": "Time", "desc": "24-hour clock with date and configurable timezone.", "icon": "clock", "variant": "clock"},
+    {"id": "goal_ring", "name": "Daily Goal Ring", "category": "Progress", "desc": "SVG progress ring towards your daily study goal.", "icon": "goal", "variant": "goal"},
+    {"id": "now_playing", "name": "YouTube Now Playing", "category": "Media", "desc": "Thumbnail, title, artist, progress and source platform chip.", "icon": "music", "variant": "media"},
+    {"id": "unified_chat", "name": "Unified Chat", "category": "Communication", "desc": "Twitch + Kick chronological feed, emotes, badges, moderation.", "icon": "chat", "variant": "chat"},
+    {"id": "live_activity", "name": "Live Activity", "category": "Events", "desc": "Alert, feed, ticker or compact modes for follows/subs/tips.", "icon": "bolt", "variant": "alert"},
+]
+
 #: display label -> registry id
 LABEL_TO_TYPE: dict[str, str] = {label: key for key, label in WIDGET_TYPES.items()}
 

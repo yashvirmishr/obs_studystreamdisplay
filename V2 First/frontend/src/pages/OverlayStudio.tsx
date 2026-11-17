@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Icon, type IconName } from "../design/icons";
+import { Icon } from "../design/icons";
 import { Snackbar } from "../design/primitives/Snackbar";
-import { api, isNormalisedPlacement, type LayoutPlacement } from "../services/api";
+import { api, isNormalisedPlacement, type LayoutPlacement, type WidgetRegistryEntry } from "../services/api";
+import { iconOr } from "../utils/icons";
 
 type SceneId = "study" | "wait";
 type SaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 interface PlacedWidget {
   id: string;
+  typeId: string;
   label: string;
-  icon: IconName;
+  icon: ReturnType<typeof iconOr>;
   x: number; y: number; // normalised 0..1 of canvas
   w: number; h: number; // normalised 0..1 of canvas
   visible: boolean;
@@ -24,31 +26,20 @@ const CANVAS_W = 1920;
 const CANVAS_H = 1080;
 const px = (n: number, axis: "x" | "y") => Math.round(n * (axis === "x" ? CANVAS_W : CANVAS_H));
 
-const WIDGET_LIBRARY: Array<{ label: string; icon: IconName; desc: string; variant: PlacedWidget["variant"] }> = [
-  { label: "Study Timer", icon: "timer", desc: "Backend stopwatch · large display", variant: "timer" },
-  { label: "Session History", icon: "layers", desc: "Last completed sessions list", variant: "history" },
-  { label: "Subject & Task", icon: "goal", desc: "Current subject chip + task line", variant: "chip" },
-  { label: "Clock", icon: "clock", desc: "24 h clock with date", variant: "clock" },
-  { label: "Daily Goal Ring", icon: "goal", desc: "SVG ring · daily target", variant: "goal" },
-  { label: "YouTube Now Playing", icon: "music", desc: "Title · artist · progress", variant: "media" },
-  { label: "Unified Chat", icon: "chat", desc: "Twitch + Kick · badges · emotes", variant: "chat" },
-  { label: "Live Activity", icon: "bolt", desc: "Alerts · feed · ticker modes", variant: "alert" },
-];
-
 /** Default placements shipped with the app (used until the user saves). */
 function studyDefaults(): PlacedWidget[] {
   return [
-    { id: "w-timer", label: "Study Timer", icon: "timer", x: 0.045, y: 0.70, w: 0.27, h: 0.17, visible: true, locked: false, opacity: 1, z: 10, variant: "timer" },
-    { id: "w-subject", label: "Subject & Task", icon: "goal", x: 0.045, y: 0.60, w: 0.27, h: 0.075, visible: true, locked: false, opacity: 1, z: 9, variant: "chip" },
-    { id: "w-now", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
-    { id: "w-clock", label: "Clock", icon: "clock", x: 0.845, y: 0.055, w: 0.12, h: 0.075, visible: true, locked: false, opacity: 1, z: 7, variant: "clock" },
-    { id: "w-chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
+    { id: "w-timer", typeId: "study_timer", label: "Study Timer", icon: "timer", x: 0.045, y: 0.70, w: 0.27, h: 0.17, visible: true, locked: false, opacity: 1, z: 10, variant: "timer" },
+    { id: "w-subject", typeId: "subject_task", label: "Subject & Task", icon: "goal", x: 0.045, y: 0.60, w: 0.27, h: 0.075, visible: true, locked: false, opacity: 1, z: 9, variant: "chip" },
+    { id: "w-now", typeId: "now_playing", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
+    { id: "w-clock", typeId: "clock", label: "Clock", icon: "clock", x: 0.845, y: 0.055, w: 0.12, h: 0.075, visible: true, locked: false, opacity: 1, z: 7, variant: "clock" },
+    { id: "w-chat", typeId: "unified_chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
   ];
 }
 function waitDefaults(): PlacedWidget[] {
   return [
-    { id: "w-now", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
-    { id: "w-chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
+    { id: "w-now", typeId: "now_playing", label: "YouTube Now Playing", icon: "music", x: 0.035, y: 0.045, w: 0.28, h: 0.11, visible: true, locked: false, opacity: 1, z: 8, variant: "media" },
+    { id: "w-chat", typeId: "unified_chat", label: "Unified Chat", icon: "chat", x: 0.735, y: 0.30, w: 0.225, h: 0.56, visible: true, locked: false, opacity: 1, z: 6, variant: "chat" },
   ];
 }
 
@@ -60,26 +51,15 @@ const SCENES: Record<SceneId, { label: string; defaults: () => PlacedWidget[] }>
 const API_SCENE: Record<SceneId, string> = { study: "Study", wait: "Please Wait" };
 
 /**
- * Display label → canonical widget registry id (backend app/widget_types.py).
- * The old implementation slugified the label ("YouTube Now Playing" →
- * "youtube_now_playing"), which never joined the registry's "now_playing" id
- * and broke widget-type joins across studio/backend/overlay.
+ * Minimal fallback for `toApiPlacement`: the registry id carried by the
+ * instance itself. The canonical source of truth is the backend's widget
+ * registry (`GET /api/v1/widgets/registry`); this module no longer ships a
+ * hand-maintained copy of it.
  */
-const WIDGET_TYPE_BY_LABEL: Record<string, string> = {
-  "Study Timer": "study_timer",
-  "Session History": "session_history",
-  "Subject & Task": "subject_task",
-  Clock: "clock",
-  "Daily Goal Ring": "goal_ring",
-  "YouTube Now Playing": "now_playing",
-  "Unified Chat": "unified_chat",
-  "Live Activity": "live_activity",
-};
-
 function toApiPlacement(w: PlacedWidget): LayoutPlacement {
   return {
     instance_name: w.id,
-    widget_type: WIDGET_TYPE_BY_LABEL[w.label] ?? w.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    widget_type: w.typeId,
     position_x: w.x,
     position_y: w.y,
     width: w.w,
@@ -93,16 +73,15 @@ function toApiPlacement(w: PlacedWidget): LayoutPlacement {
   };
 }
 
-function fromApiPlacement(p: LayoutPlacement): PlacedWidget {
-  // Match by label first, then by canonical widget_type so layouts saved by
-  // older builds (with slug ids) still map onto the right library entry.
+function fromApiPlacement(p: LayoutPlacement, library: WidgetRegistryEntry[] | null): PlacedWidget {
   const known =
-    WIDGET_LIBRARY.find((w) => w.label === p.label) ??
-    WIDGET_LIBRARY.find((w) => WIDGET_TYPE_BY_LABEL[w.label] === p.widget_type);
+    library?.find((e) => e.id === p.widget_type) ??
+    library?.find((e) => e.name === p.label);
   return {
     id: p.instance_name,
-    label: p.label || p.instance_name,
-    icon: known?.icon ?? "widgets",
+    typeId: known?.id ?? p.widget_type,
+    label: p.label || known?.name || p.widget_type,
+    icon: iconOr(known?.icon ?? "widgets"),
     x: p.position_x,
     y: p.position_y,
     w: p.width,
@@ -125,6 +104,8 @@ export default function OverlayStudio() {
   const [snack, setSnack] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [library, setLibrary] = useState<WidgetRegistryEntry[] | null>(null);
+  const [registryFailed, setRegistryFailed] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ id: string; mode: "move" | "resize"; startX: number; startY: number; origin: PlacedWidget } | null>(null);
   const dirtyRef = useRef(false);
@@ -148,7 +129,7 @@ export default function OverlayStudio() {
     try {
       const res = await api.scenes.getLayout(API_SCENE[next]);
       if (res.placements && res.placements.length > 0 && res.placements.every(isNormalisedPlacement)) {
-        const mapped = res.placements.map(fromApiPlacement);
+        const mapped = res.placements.map((p) => fromApiPlacement(p, libraryRef.current));
         setWidgets(mapped);
         setSelectedId(mapped[0]?.id ?? null);
         setSaveState("saved");
@@ -174,6 +155,40 @@ export default function OverlayStudio() {
     widgetsRef.current = widgets;
   }, [widgets]);
 
+  // Widget catalogue: ONE source of truth (backend registry). Icons repair
+  // themselves once the registry arrives (placements loaded before it land
+  // with the fallback icon); ids/labels/order come from the backend.
+  const libraryRef = useRef<WidgetRegistryEntry[] | null>(library);
+  useEffect(() => {
+    libraryRef.current = library;
+  }, [library]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.widgets
+      .registry()
+      .then((r) => {
+        if (!cancelled) setLibrary(r.widgets);
+      })
+      .catch(() => {
+        if (!cancelled) setRegistryFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Icons repair once the registry lands (no-op when already correct).
+  useEffect(() => {
+    if (!library) return;
+    setWidgets((ws) =>
+      ws.map((w) => {
+        const spec = library.find((e) => e.id === w.typeId);
+        return spec ? { ...w, icon: iconOr(spec.icon) } : w;
+      }),
+    );
+  }, [library]);
+
   /** Debounced persist of dirty layouts. Snapshot is taken at fire time —
    *  never inside a state updater (StrictMode double-invokes updaters). */
   const scheduleSave = useCallback(() => {
@@ -198,14 +213,28 @@ export default function OverlayStudio() {
     scheduleSave();
   }, [scheduleSave]);
 
-  const addWidget = (label: string, icon: IconName, variant: PlacedWidget["variant"]) => {
+  const addWidget = (entry: WidgetRegistryEntry) => {
     const id = `w-${Date.now().toString(36)}`;
     mutate((ws) => [
       ...ws,
-      { id, label, icon, x: 0.06 + (ws.length % 5) * 0.03, y: 0.08 + (ws.length % 5) * 0.04, w: 0.22, h: 0.12, visible: true, locked: false, opacity: 1, z: 20 + ws.length, variant },
+      {
+        id,
+        typeId: entry.id,
+        label: entry.name,
+        icon: iconOr(entry.icon),
+        x: 0.06 + (ws.length % 5) * 0.03,
+        y: 0.08 + (ws.length % 5) * 0.04,
+        w: 0.22,
+        h: 0.12,
+        visible: true,
+        locked: false,
+        opacity: 1,
+        z: 20 + ws.length,
+        variant: entry.variant as PlacedWidget["variant"],
+      },
     ]);
     setSelectedId(id);
-    setSnack(`${label} placed on “${SCENES[scene].label}” — drag to position.`);
+    setSnack(`${entry.name} placed on “${SCENES[scene].label}” — drag to position.`);
   };
 
   const duplicateSelected = () => {
@@ -331,12 +360,21 @@ export default function OverlayStudio() {
             <p>Click to place into “{SCENES[scene].label}” · layout persists to SQLite</p>
           </div>
           <div className="panel-body">
-            {WIDGET_LIBRARY.map((w) => (
-              <button key={w.label} type="button" className="widget-pick" onClick={() => addWidget(w.label, w.icon, w.variant)}>
-                <Icon name={w.icon} size={20} />
+            {registryFailed && (
+              <div style={{ fontSize: 12, color: "var(--ss-color-text-muted)", lineHeight: 1.6 }}>
+                Could not load the widget registry — is the backend running?{" "}
+                <button type="button" className="btn btn-outlined" onClick={() => { setRegistryFailed(false); void api.widgets.registry().then((r) => setLibrary(r.widgets)).catch(() => setRegistryFailed(true)); }}>Retry</button>
+              </div>
+            )}
+            {library === null && !registryFailed && (
+              <div style={{ fontSize: 12, color: "var(--ss-color-text-faint)" }}>Loading widgets…</div>
+            )}
+            {library?.map((entry) => (
+              <button key={entry.id} type="button" className="widget-pick" onClick={() => addWidget(entry)}>
+                <Icon name={iconOr(entry.icon)} size={20} />
                 <span>
-                  {w.label}
-                  <small>{w.desc}</small>
+                  {entry.name}
+                  <small>{entry.desc}</small>
                 </span>
                 <Icon name="plus" size={16} className="add" />
               </button>

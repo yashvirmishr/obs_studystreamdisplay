@@ -1,30 +1,12 @@
 import { useEffect, useState } from "react";
-import { Icon, type IconName } from "../design/icons";
+import { Icon } from "../design/icons";
 import { Snackbar } from "../design/primitives/Snackbar";
-import { api } from "../services/api";
+import { api, type WidgetRegistryEntry } from "../services/api";
+import { iconOr } from "../utils/icons";
 
-/**
- * Widget registry — the real catalogue of widget types shipping in this
- * build. Instances live per-scene (Overlay Studio); enablement here is a
- * global preference persisted in the backend (settings allowlist).
- *
- * Ids MUST mirror backend/app/widget_types.py WIDGET_TYPES — these are the
- * same registry ids stored in widgets.widget_type and broadcast to the
- * overlay in overlay.hello. (A previous "daily_goal" id here drifted from
- * the backend's "goal_ring" and silently toggled a key nothing read.)
- */
-const WIDGET_LIBRARY: Array<{ id: string; name: string; category: string; desc: string; icon: IconName }> = [
-  { id: "study_timer", name: "Study Timer", category: "Study", desc: "Backend-authoritative stopwatch with pause/resume and daily totals.", icon: "timer" },
-  { id: "subject_task", name: "Subject & Task", category: "Study", desc: "Current subject chip and task line for the running session.", icon: "goal" },
-  { id: "session_history", name: "Session History", category: "Study", desc: "Last N completed sessions with durations and subjects.", icon: "layers" },
-  { id: "clock", name: "Clock", category: "Time", desc: "24-hour clock with date and configurable timezone.", icon: "clock" },
-  { id: "goal_ring", name: "Daily Goal Ring", category: "Progress", desc: "SVG progress ring towards your daily study goal.", icon: "goal" },
-  { id: "now_playing", name: "YouTube Now Playing", category: "Media", desc: "Thumbnail, title, artist, progress and source platform chip.", icon: "music" },
-  { id: "unified_chat", name: "Unified Chat", category: "Communication", desc: "Twitch + Kick chronological feed, emotes, badges, moderation.", icon: "chat" },
-  { id: "live_activity", name: "Live Activity Alert", category: "Events", desc: "Alert, feed, ticker or compact modes for follows/subs/tips.", icon: "bolt" },
-];
-
-const ALL_IDS = WIDGET_LIBRARY.map((w) => w.id);
+// The catalog comes from the backend (`GET /api/v1/widgets/registry`), which
+// is the ONE place widget ids/labels/icons are defined. The previous
+// hand-maintained copies (the "daily_goal" vs. "goal_ring" drift) are gone.
 
 /**
  * `null` means "no saved preference" — the backend default, where every
@@ -35,9 +17,25 @@ const ALL_IDS = WIDGET_LIBRARY.map((w) => w.id);
  * so widget types added later stay enabled by default.
  */
 export default function Widgets() {
+  const [library, setLibrary] = useState<WidgetRegistryEntry[] | null>(null);
+  const [registryFailed, setRegistryFailed] = useState(false);
   const [enabled, setEnabled] = useState<Set<string> | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.widgets.registry()
+      .then((r) => {
+        if (!cancelled) setLibrary(r.widgets);
+      })
+      .catch(() => {
+        if (!cancelled) setRegistryFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,16 +51,18 @@ export default function Widgets() {
     return () => { cancelled = true; };
   }, []);
 
+  const allIds = library?.map((w) => w.id) ?? [];
   const isEnabled = (id: string) => enabled === null || enabled.has(id);
 
   const toggle = async (id: string) => {
+    if (library === null) return; // registry unavailable — nothing honest to save against
     // Materialise the current restrict-list (or the full list when default).
-    const base = enabled ?? new Set(ALL_IDS);
+    const base = enabled ?? new Set(allIds);
     const next = new Set(base);
     if (next.has(id)) next.delete(id); else next.add(id);
-    const clearing = next.size === ALL_IDS.length; // everything back on → clear preference
+    const clearing = next.size === allIds.length; // everything back on → clear preference
     setEnabled(clearing ? null : next);
-    const target = WIDGET_LIBRARY.find((w) => w.id === id);
+    const target = library.find((w) => w.id === id);
     try {
       await api.settings.put({ enabled_widgets: clearing ? null : Array.from(next) });
       setSnack(target ? `${target.name} ${next.has(id) ? "enabled" : "disabled"} (saved)` : "saved");
@@ -72,11 +72,11 @@ export default function Widgets() {
     }
   };
 
-  const countLabel = loaded
-    ? enabled === null
-      ? `All ${ALL_IDS.length} enabled (default)`
-      : `${enabled.size} of ${ALL_IDS.length} enabled`
-    : "Loading…";
+  const countLabel = !loaded || library === null
+    ? "Loading…"
+    : enabled === null
+      ? `All ${allIds.length} enabled (default)`
+      : `${enabled.size} of ${allIds.length} enabled`;
 
   return (
     <div className="page">
@@ -90,10 +90,15 @@ export default function Widgets() {
       </div>
 
       <div className="grid-12">
-        {WIDGET_LIBRARY.map((w, i) => (
+        {registryFailed && (
+          <div className="card col-12" style={{ padding: 24, color: "var(--ss-color-text-muted)", fontSize: 13 }}>
+            Could not load the widget registry — is the backend running? Refresh this page to retry.
+          </div>
+        )}
+        {library?.map((w, i) => (
           <div key={w.id} className="card hoverable widget-card reveal col-3" style={{ animationDelay: `${i * 60}ms` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-              <div className="wicon"><Icon name={w.icon} size={24} /></div>
+              <div className="wicon"><Icon name={iconOr(w.icon)} size={24} /></div>
               <button type="button" className="switch" role="switch" aria-checked={isEnabled(w.id)}
                 aria-label={`Enable ${w.name}`} onClick={() => void toggle(w.id)} />
             </div>

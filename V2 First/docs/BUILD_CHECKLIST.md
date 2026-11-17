@@ -187,3 +187,13 @@ Note: backend startup now logs "applying database migrations... database is up t
 | N2 | Frontend hand-maintained response interfaces replaced by aliases of the generated schema | ✅ done | frontend/src/services/api-schema.ts generated via `npm run gen:api` (openapi-typescript 7.13.0); api.ts exports the same names (StudyState narrowed on `state`; IntegrationInfo/LayoutPlacement/HistoryEntry/RecentEvent required-key-pinned); 1 strict-null fix (Overview received_at) |
 | N3 | gen:api script added | ✅ done | package.json `gen:api`; spec is public (not behind /api/v1) so no token in the script |
 | N4 | Sidecar + installer rebuilt with validated responses | ✅ done | 26.20 MiB at 13:11; X: unmounted after |
+
+## O. Widget registry as the single source of truth (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| O1 | GET /api/v1/widgets/registry serves the canonical catalog (ids, names, categories, descriptions, icons, default variant) | ✅ done | app/widget_types.py WIDGET_REGISTRY; app/api/widgets.py; test_widgets_registry; 40 passed; 401 fail-closed |
+| O2 | Widgets page + Overlay Studio consume the endpoint - the two hand-maintained registries are deleted; unknown backend icon names fall back via utils/icons.ts | ✅ done | both pages verified live: studio library renders backend-supplied cards; session_history placed via registry persisted (user's layout restored after) |
+| O3 | Icon repair effect in Studio: placements loaded before registry arrival get icons fixed in place (ids/variants untouched) | ✅ done | visible in code path |
+| O4 | Sidecar + installer rebuilt with the registry (packaging gotcha fixed: PyInstaller cleanup hung ~10 min on OneDrive reparse locks leaving dist/build empty; recovered with pyinstaller --workpath on local temp) | ✅ done | installer 26.20 MiB at 14:10; AGENT_CONTEXT carries the recovery recipe |
+| O5 | Registry endpoint present in the PACKAGED sidecar | ✅ verified | fresh-scratch-DB smoke: health ok; /api/v1/widgets/registry -> 8 widgets; wrong token 401 |

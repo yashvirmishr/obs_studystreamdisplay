@@ -435,3 +435,19 @@ killed. Ports free after testing.
   tsc + vite exit 0; suite 39 passed. Contract drift is now a type error.
 - Installer rebuilt (26.20 MiB at 13:11). Dev backend restarted on 47831
   and serves the response models.
+
+## 2026-11-17 - Widget registry endpoint (single source of truth)
+
+- The Studio and the Widgets page each hand-maintained widget-type maps
+  (the goal_ring/daily_goal drift class). Now one registry: widget_types.py
+  WIDGET_REGISTRY served at GET /api/v1/widgets/registry; both pages fetch
+  it; studio places instances with the registry default variant + id;
+  unknown backend icons fall back to "widgets" instead of rendering garbage.
+- Verified live: studio library + widgets grid render from the endpoint;
+  Session History placed from the library persisted via debounced save
+  (user's scene layout restored afterwards); registry smoke passed in the
+  packaged sidecar too.
+- BUILD GOTCHA (added to AGENT_CONTEXT): if build_backend.ps1 hangs about
+  10 minutes, it wipes dist/build; recover with pyinstaller using
+  --workpath on a LOCAL temp dir, then the wrapper for the copy step.
+- Sidecar + installer rebuilt (26.20 MiB, 14:10). Suite 40 passed.

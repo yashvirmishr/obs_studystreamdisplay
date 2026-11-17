@@ -121,6 +121,23 @@ def test_scenes_list_seeded(client: TestClient):
     assert all("is_active" in s and "canvas_width" in s for s in r.json()["scenes"])
 
 
+def test_widgets_registry(client: TestClient):
+    """GET /api/v1/widgets/registry ships the canonical catalog: every entry
+    has a registry id that matches widget_types.WIDGET_TYPES and an icon."""
+    from app.widget_types import WIDGET_TYPES
+
+    r = client.get("/api/v1/widgets/registry", headers=AUTH)
+    assert r.status_code == 200, r.text
+    widgets = r.json()["widgets"]
+    ids = [w["id"] for w in widgets]
+    assert sorted(ids) == sorted(WIDGET_TYPES)  # same membership, no dupes
+    assert all(w["name"] for w in widgets)
+    assert all(w["icon"] for w in widgets)
+    assert all(w["variant"] for w in widgets)
+    # The canonical ids the frontend used to drift on must be present
+    assert "goal_ring" in ids and "now_playing" in ids
+
+
 def test_test_event_lifecycle(client: TestClient):
     r = client.post(
         "/api/v1/events/test",

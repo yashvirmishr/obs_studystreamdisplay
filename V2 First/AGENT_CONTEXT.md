@@ -65,6 +65,15 @@ WebSockets. The OBS overlay is a separate React renderer (later phases).
   `binaries/` directory aside, create it fresh, copy the new exe in. The
   stale copy sits in `binaries-stale-DELETE-ME/` — delete it by hand when
   OneDrive releases the lock.
+- **Sidecar build can hang silently for ~10 minutes** even though it
+  produced nothing: the cleanup step (`Remove-Item backend\dist, build`)
+  can take minutes to release OneDrive reparse-locked children, and the
+  wrapper then dies on its own timeout leaving `backend\dist`/`build`
+  EMPTY (as happened 2026-11-17). Recovery: wait/polish the lock check with
+  `Get-ChildItem backend\dist` (empty dirs ⇒ build never ran), then invoke
+  `pyinstaller backend\studystream.spec --noconfirm --distpath backend\dist
+  --workpath $env:LOCALAPPDATA\Temp\opencode\pyi-work` DIRECTLY (~200 s),
+  then run build-backend-sidecar.ps1's copy step again.
 - Overlay renderer is a full widget host (since 2026-11-15): `overlay/` builds
   to `backend/overlay-dist/`, served by the backend at `/overlay/<scene>`;
   8 widgets keyed off placement `variant`; transparent canvas; auto-reconnect
