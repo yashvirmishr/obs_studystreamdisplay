@@ -39,8 +39,9 @@ Approved baseline. Change requires explicit user approval. Last updated: 2026-11
 7. Schema changes via Alembic migrations only — applied automatically at
    backend startup (`run_backend.py` → `app/migrate.py` → `alembic
    upgrade head`, fatal on failure). Packaged installs use the per-user
-   app-data DB (`%APPDATA%/com.yashvir.studystream2/studystream.db`);
-   dev keeps `backend/studystream.db`. No manual migration step exists.
+   `app_local_data_dir()` DB (`%LOCALAPPDATA%/com.yashvir.studystream2/
+   studystream.db`); dev keeps `backend/studystream.db`. No manual migration
+   step exists.
 8. Study timer state is backend-authoritative (persisted transitions; survives
    dashboard refresh, OBS reload, app restart).
 

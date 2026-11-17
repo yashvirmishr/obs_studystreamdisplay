@@ -54,7 +54,7 @@ WebSockets. The OBS overlay is a separate React renderer (later phases).
   upgrade head` (app/migrate.py) before uvicorn starts — dev and packaged
   alike. Packaged mode: the shell passes
   `STUDYSTREAM_DATABASE_URL=sqlite:///<app-data-dir>/studystream.db`
-  (`%APPDATA%/com.yashvir.studystream2/`), created on demand. Failure is
+  (`%LOCALAPPDATA%/com.yashvir.studystream2/`), created on demand. Failure is
   fatal (exit 1) → shell reports Error with the backend log path instead of
   serving a broken API. Overlay token boot-log error that existed on empty
   DBs is gone.

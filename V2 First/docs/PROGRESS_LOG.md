@@ -376,3 +376,26 @@ killed. Ports free after testing.
 - Git: V2 First tree initially committed as f12c440 (v2-open-overlay) and
   pushed to origin (6f803d3..f12c440). V1 root restructure, V1.zip and the
   Lo-fi image remain uncommitted on purpose (owner's call).
+
+## 2026-11-17 - Settings persistence + honest static text + packaged DB path (follow-up slice 2)
+
+- theme_accent setting was in the allowlist and the Settings page rendered
+  working accent swatches, but the selection never persisted (reset to Sage
+  on every reload - exactly the "looks like it works but doesn't" genre).
+  Now round-trips through SQLite (load on mount; clicking Sage clears the
+  preference via settings PUT null). Verified live (agent-browser): Teal
+  selected -> GET settings returns "ss-accent-teal" -> full page reload ->
+  Teal still checked. User-visible note: accent classes land on .ss-ambient
+  (app root) at mount and on click. Test-write reverted afterwards
+  (theme_accent = null).
+- Packaged DB path unified on %LOCALAPPDATA%: desktop shell switched from
+  Tauri app_data_dir() (%APPDATA%, roaming) to app_local_data_dir() so the
+  code matches the Settings page claim and keeps a local-only DB out of
+  roaming sync. Docs updated (ARCHITECTURE invariant 7, AGENT_CONTEXT).
+- Settings page honesty fixes in Storage and About panes (all stale claims):
+  schema 0002 -> 0004_study_session_index; migrations 0001->0004;
+  backend sidecar 21.5 -> ~24 MB; "Phase 1 verified, Phase 2 in flight"
+  -> "Phases 1-4 verified"; Alembic range 0001-0003 -> 0001-0004.
+- Frontend build exit 0; installer rebuilt (26.19 MiB, 12:46:07) via subst
+  X: (X: unmounted after). Backend unchanged this slice; dev backend on
+  47831 serves the current code (37 tests passed).

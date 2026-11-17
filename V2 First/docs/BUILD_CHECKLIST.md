@@ -160,3 +160,12 @@ Note: backend startup now logs "applying database migrations... database is up t
 | K2 | Overview OBS URL card: scene-chip tabs (.scene-chip reuse) replacing the hard-wired "study"; visible only with 2+ scenes; refresh + copy follow the selection | ✅ pass | agent-browser live: Study default shows Study token URL; clicking Please Wait switched to the Please Wait token URL (screenshot obs-scene-picker.png) |
 | K3 | New backend test test_scenes_list_seeded | ✅ pass | suite 36 -> 37 passed |
 | K4 | Sidecar + NSIS installer rebuilt to ship the endpoint | ✅ done | 26.19 MiB at 12:35; X: unmounted after |
+
+## L. Settings honesty + packaged DB location (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| L1 | theme_accent round-trips: swatch -> PUT -> reload -> same accent | ✅ pass | agent-browser live; GET /settings returned ss-accent-teal; reload kept Teal checked; test-write reverted to null |
+| L2 | Packaged DB dir: shell app_local_data_dir() -> %LOCALAPPDATA%/com.yashvir.studystream2/studystream.db (matches Settings page claim; keeps a local-only DB out of roaming) | ✅ done | main.rs change; installer rebuilt |
+| L3 | Settings Storage pane stale schema claims (0002, "applied 0001 -> 0002") corrected; About pane stale claims (phase, 21.5 MB, Alembic 0001-0003) corrected | ✅ done | verified rendering via agent-browser snapshot |
+| L4 | Installer rebuilt with shell change | ✅ done | 26.19 MiB at 12:46; X: unmounted after |

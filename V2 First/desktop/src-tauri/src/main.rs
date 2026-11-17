@@ -345,10 +345,11 @@ fn start_backend(app: &tauri::AppHandle) -> Arc<BackendProcess> {
     }) {
         Ok((spec, file, log_path)) => {
             let database_url = if spec.mode == "sidecar" {
-                // Per-user data dir (%APPDATA%/com.yashvir.studystream2):
-                // writable, survives reinstalls, never touched by uninstall.
+                // Local (non-roaming) per-user data dir —
+                // %LOCALAPPDATA%/com.yashvir.studystream2; writable,
+                // survives reinstalls, never roams, matches the Settings UI.
                 app.path()
-                    .app_data_dir()
+                    .app_local_data_dir()
                     .ok()
                     .and_then(|dir| {
                         if fs::create_dir_all(&dir).is_err() {

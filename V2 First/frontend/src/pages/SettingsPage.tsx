@@ -26,6 +26,23 @@ export default function SettingsPage() {
   const [goalStatus, setGoalStatus] = useState<string>("");
   const [snack, setSnack] = useState<string | null>(null);
 
+  // Accent persists in the backend (theme_accent setting). Load on mount;
+  // absent preference ⇒ default Sage. Clicking Sage clears the preference
+  // (settings PUT null deletes the row) so a "never set" state survives.
+  useEffect(() => {
+    api.settings.get(["theme_accent"])
+      .then((s) => { setAccent(typeof s.theme_accent === "string" ? s.theme_accent : ""); })
+      .catch(() => undefined);
+  }, []);
+  const chooseAccent = async (id: string) => {
+    setAccent(id);
+    try {
+      await api.settings.put({ theme_accent: id === "" ? null : id });
+    } catch {
+      setSnack("Backend unreachable — accent not saved.");
+    }
+  };
+
   // Load the real goal from the backend.
   useEffect(() => {
     api.settings.get(["study_goal_hours"])
@@ -80,7 +97,7 @@ export default function SettingsPage() {
                   <button key={a.id || "sage"} type="button" className={`accent-swatch${accent === a.id ? " active" : ""}`}
                     style={{ background: `linear-gradient(140deg, ${a.color}, color-mix(in srgb, ${a.color} 45%, black))` }}
                     role="radio" aria-checked={accent === a.id} aria-label={a.label} title={a.label}
-                    onClick={() => setAccent(a.id)} />
+                    onClick={() => void chooseAccent(a.id)} />
                 ))}
               </div>
               <p style={{ fontSize: 11, color: "var(--ss-color-text-faint)", marginTop: 14, lineHeight: 1.6 }}>
@@ -108,8 +125,8 @@ export default function SettingsPage() {
               <div className="card-head"><div><h3><Icon name="layers" size={16} /> Storage</h3><div className="sub">SQLite · WAL · foreign keys enforced</div></div></div>
               <div className="kv">
                 <dt>Database</dt><dd>%LOCALAPPDATA%\com.yashvir.studystream2\studystream.db</dd>
-                <dt>Schema version</dt><dd>0002_core_tables (10 tables + app_settings)</dd>
-                <dt>Migrations</dt><dd>Alembic · forward-only · 0001 → 0002 applied</dd>
+                <dt>Schema version</dt><dd>0004_study_session_index</dd>
+                <dt>Migrations</dt><dd>Alembic · forward-only · applied 0001 → 0004 (runs at backend startup)</dd>
                 <dt>Event history</dt><dd>retained · configurable retention (Phase 6)</dd>
                 <dt>Session logs</dt><dd>%LOCALAPPDATA%\com.yashvir.studystream2\logs\</dd>
                 <dt>V1 migration</dt><dd>none — clean greenfield install</dd>
@@ -137,12 +154,12 @@ export default function SettingsPage() {
 
           {section === "about" && (
             <>
-              <div className="card-head"><div><h3><Icon name="overview" size={16} /> About</h3><div className="sub">Study Stream 2.0 · Phase 1 verified, Phase 2 in flight</div></div></div>
+              <div className="card-head"><div><h3><Icon name="overview" size={16} /> About</h3><div className="sub">Study Stream 2.0 · Phases 1–4 verified</div></div></div>
               <div className="kv">
-                <dt>Version</dt><dd>v0.1.0 (foundation verified)</dd>
+                <dt>Version</dt><dd>v0.1.0 (Phases 1–4 verified)</dd>
                 <dt>Shell</dt><dd>Tauri 2 · React 18 · TypeScript strict · Vite 5</dd>
-                <dt>Backend</dt><dd>FastAPI · Python 3 · PyInstaller sidecar (21.5 MB)</dd>
-                <dt>Data</dt><dd>SQLite + SQLAlchemy 2.0 + Alembic (0001–0003)</dd>
+                <dt>Backend</dt><dd>FastAPI · Python 3 · PyInstaller sidecar (~24 MB)</dd>
+                <dt>Data</dt><dd>SQLite + SQLAlchemy 2.0 + Alembic (0001–0004)</dd>
                 <dt>Overlay</dt><dd>Standalone renderer at overlay/ — one OBS Browser Source per scene</dd>
                 <dt>License</dt><dd>All rights reserved · personal project</dd>
               </div>
