@@ -465,3 +465,15 @@ killed. Ports free after testing.
   the packaged exe. Connect 501 message updated: storage ready; handshake
   is what Phase 5 still owes (needs provider developer app registrations).
 - Suite: 40 -> 45 passed (real Windows Credential Manager round trips).
+
+## 2026-11-17 - Vite 5 -> 7 migration
+
+- Both apps upgraded to vite ^7.3.8 (esbuild ^0.25) clearing
+  GHSA-67mh-4wv8-2f99 in frontend/ and overlay/; npm audit now reports
+  zero vulnerabilities in both.
+- tsc + vite build exit 0 in both apps; overlay rebuilt and the live
+  overlay was verified through the dev backend (fresh asset hash
+  index-CfM3a5Ma.js served 200, widgets render).
+- sidecar + installer rebuilt again (26.37 MiB at 19:13) so the shipped
+  bundle embeds the new overlay. OBS Browser Sources need one manual
+  refresh (asset hashes changed again).

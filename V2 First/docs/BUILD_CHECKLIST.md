@@ -71,7 +71,7 @@ Legend: ✅ verified on Windows 11 (evidence) · 🧪 implemented + tested via a
 - ⬜ Phase 2+ features: actual dashboard data density polish, Phase 4 widget registry endpoints, Phase 5 chat (StreamElements), Phase 6 events wiring, Phase 7 study integration into overlay, OBS CEF rendering test
 - ✅ ~~Frontend dist is stale vs. current source~~ (rebuilt 2026-11-15, `tsc` + vite exit 0 — includes eventText dedupe + probe cleanup)
 - ⬜ Light theme token pass (dark-first shipped)
-- Known and accepted (dev-only): overlay/ and frontend/ each report 1 moderate + 1 high esbuild/vite advisory (GHSA-67mh-4wv8-2f99 class). The vulnerable esbuild only runs in the vite DEV SERVER on 127.0.0.1 during development; the Tauri app and OBS load static built assets. Fix forces vite 5 -> 8 (rolldown/OXC toolchain) - out of scope as a tail-of-session jump; scheduled as its own migration. Do NOT run npm audit fix --force blindly.
+- ✅ Dev-server advisories (esbuild GHSA-67mh-4wv8-2f99): RESOLVED 2026-11-17 by upgrading vite 5 -> 7.3.8 in BOTH apps (vite 7 ships esbuild ^0.25, clearing both advisories without the rolldown jump of vite 8). npm audit now reports zero vulnerabilities in frontend/ and overlay/. Rolled out + verified live; OBS Browser Sources need one manual refresh (asset hashes changed).
 - ✅ OBS overlay URL card on Overview: per-scene picker chips (Study / Please Wait from GET /api/v1/scenes) drive the overlay-url fetch - done 2026-11-17 (agent-browser verified: Study default, Please Wait chip switched URL to the Please Wait scene token)
 - ✅ Widgets page toggles vs. per-scene placements: layers unambiguous - Overlay Studio (placements) decides whether/where a widget exists on a scene; the global enabled_widgets page is a cross-scene kill switch filtering placements in the overlay (null = all enabled). Applied live via overlay.widgets_updated (2026-11-17). See section J
 
@@ -207,3 +207,12 @@ Note: backend startup now logs "applying database migrations... database is up t
 | P3 | Sidecar bundles the vault backend: `keyring>=25.7` in requirements.txt; spec hiddenimports pin win32ctypes for the onefile exe | ✅ done | sidecar REBUILT with vault (log shows keyring.backends.Windows analyzed; installer 26.37 MiB at 18:54). Round trip verified through the dev backend on this machine (identical keyring/win32ctypes stack). NOT yet smoked inside the packaged exe - no code path can reach the vault until the Phase 5 OAuth handlers exist |
 | P4 | Connect 501 detail now states the vault is ready and a handshake is what is missing (Phase 5, needs the provider developer app) | ✅ done | integrations.py |
 | P5 | Test count 40 -> 45 (5 vault tests, including real Windows Credential Manager round trips with cleanup) | ✅ pass | suite green |
+
+## Q. Vite 5 -> 7 migration (2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| Q1 | vite 5.4.21 -> 7.3.8 in frontend/ AND overlay/ (peers: @vitejs/plugin-react ^4.3.4 accepts ^7) | ✅ done | both builds green (tsc + vite) |
+| Q2 | npm audit: zero vulnerabilities in both apps (advisory GHSA-67mh-4wv8-2f99 gone) | ✅ done | `npm audit` output in both dirs |
+| Q3 | overlay bundle rebuilt + served live (index-CfM3a5Ma.js); widgets render from the fresh bundle | ✅ verified live | agent-browser snapshot: NO ACTIVE SESSION / DAILY GOAL / SESSION HISTORY present; served HTML references the new hash |
+| Q4 | sidecar + installer rebuilt with the fresh bundle | ✅ done | 26.37 MiB at 19:13; X: unmounted after |
