@@ -197,3 +197,13 @@ Note: backend startup now logs "applying database migrations... database is up t
 | O3 | Icon repair effect in Studio: placements loaded before registry arrival get icons fixed in place (ids/variants untouched) | ✅ done | visible in code path |
 | O4 | Sidecar + installer rebuilt with the registry (packaging gotcha fixed: PyInstaller cleanup hung ~10 min on OneDrive reparse locks leaving dist/build empty; recovered with pyinstaller --workpath on local temp) | ✅ done | installer 26.20 MiB at 14:10; AGENT_CONTEXT carries the recovery recipe |
 | O5 | Registry endpoint present in the PACKAGED sidecar | ✅ verified | fresh-scratch-DB smoke: health ok; /api/v1/widgets/registry -> 8 widgets; wrong token 401 |
+
+## P. OS credential vault for OAuth tokens (Phase 5 foundation, 2026-11-17)
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| P1 | `app/security/vault.py`: set/get/delete/probe for provider tokens via `keyring` (Windows Credential Manager; win32ctypes backend); fail-loud CredentialVaultError (never silent clear); provider name validation | ✅ done + tests | test_vault.py round trip, overwrite, validation, probe - 5 tests |
+| P2 | `POST /api/v1/integrations/{provider}/disconnect` also purges the vault; response gains `credential_purged` so the UI never claims a secret was erased when it was not | ✅ done + live-verified | live: planted token for kick, disconnect via API, credential_purged: true, token_stored false |
+| P3 | Sidecar bundles the vault backend: `keyring>=25.7` in requirements.txt; spec hiddenimports pin win32ctypes for the onefile exe | ✅ done | sidecar REBUILT with vault (log shows keyring.backends.Windows analyzed; installer 26.37 MiB at 18:54). Round trip verified through the dev backend on this machine (identical keyring/win32ctypes stack). NOT yet smoked inside the packaged exe - no code path can reach the vault until the Phase 5 OAuth handlers exist |
+| P4 | Connect 501 detail now states the vault is ready and a handshake is what is missing (Phase 5, needs the provider developer app) | ✅ done | integrations.py |
+| P5 | Test count 40 -> 45 (5 vault tests, including real Windows Credential Manager round trips with cleanup) | ✅ pass | suite green |

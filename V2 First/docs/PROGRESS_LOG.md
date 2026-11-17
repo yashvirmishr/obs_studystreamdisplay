@@ -451,3 +451,17 @@ killed. Ports free after testing.
   10 minutes, it wipes dist/build; recover with pyinstaller using
   --workpath on a LOCAL temp dir, then the wrapper for the copy step.
 - Sidecar + installer rebuilt (26.20 MiB, 14:10). Suite 40 passed.
+
+## 2026-11-17 - OS credential vault for OAuth tokens (Phase 5 foundation)
+
+- CODING_STANDARDS rule 3 honored: OAuth tokens never live in SQLite.
+  app/security/vault.py is the single path (keyring -> Windows Credential
+  Manager). Fail-loud CredentialVaultError; provider name validation;
+  probe() canary to test backend health.
+- Disconnect now purges the vault too and reports `credential_purged`
+  honestly. Verified LIVE on the dev backend: planted token for kick,
+  disconnect via API, credential_purged: true, vault empty afterwards.
+- keyring added to requirements; spec hiddenimports pin win32ctypes for
+  the packaged exe. Connect 501 message updated: storage ready; handshake
+  is what Phase 5 still owes (needs provider developer app registrations).
+- Suite: 40 -> 45 passed (real Windows Credential Manager round trips).

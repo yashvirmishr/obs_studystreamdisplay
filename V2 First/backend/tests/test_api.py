@@ -121,6 +121,24 @@ def test_scenes_list_seeded(client: TestClient):
     assert all("is_active" in s and "canvas_width" in s for s in r.json()["scenes"])
 
 
+def test_disconnect_purges_vault_credential(client: TestClient):
+    """Disconnect is honest end-to-end: row flips AND any stored OAuth
+    credential is purged from the OS vault (machine-local round trip)."""
+    from app.security import vault
+
+    provider = "twitch"
+    vault.set_token(provider, "throwaway-disconnect-test-token")
+    try:
+        r = client.post(f"/api/v1/integrations/{provider}/disconnect", headers=AUTH)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "disconnected"
+        assert body["credential_purged"] is True
+        assert vault.token_stored(provider) is False
+    finally:
+        vault.delete_token(provider)  # belt and braces — nothing real here
+
+
 def test_widgets_registry(client: TestClient):
     """GET /api/v1/widgets/registry ships the canonical catalog: every entry
     has a registry id that matches widget_types.WIDGET_TYPES and an icon."""

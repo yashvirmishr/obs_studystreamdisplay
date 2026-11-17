@@ -58,6 +58,14 @@ a = Analysis(
         "alembic.runtime.environment",
         "alembic.operations.ops",
         "alembic.operations.toimpl",
+        # OAuth tokens live in the OS credential vault (app/security/vault.py)
+        # via keyring's win32ctypes backend; keyring discovers backends at
+        # runtime through atypical imports, so pin them for the bundle.
+        "keyring",
+        "keyring.backends.Windows",
+        "keyring.backends.fail",
+        "win32ctypes.pywin32.win32cred",
+        "win32ctypes.pywin32.pywintypes",
     ],
     hookspath=[],
     hooksconfig={},

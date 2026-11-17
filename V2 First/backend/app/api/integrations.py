@@ -90,15 +90,20 @@ def connect(provider: str) -> dict:
     raise HTTPException(
         status_code=501,
         detail=(
-            "OAuth handshake is not implemented yet in v0.1 — connect requires your "
-            f"{provider} developer credentials. The integration stays disconnected until "
-            "the secure handshake ships (Phase 5). No fake connections are made."
+            "OAuth handshake for this provider is not implemented yet. Token storage "
+            "IS ready (OS credential vault — `keyring`, Windows Credential Manager). "
+            "Connecting needs the provider's developer credentials on your machine; "
+            "the handshake ships in Phase 5. No fake connections are made."
         ),
     )
 
 
 @router.post("/{provider}/disconnect")
 def disconnect(provider: str) -> dict:
+    """Honest disconnect: the row goes disconnected AND any stored OAuth
+    credential is purged from the OS vault. `credential_purged` reports what
+    actually happened so the UI never claims a secret was erased when it
+    wasn't."""
     if provider not in INTEGRATION_PROVIDERS:
         raise HTTPException(status_code=404, detail=f"unknown provider: {provider}")
     with SessionLocal() as db:
@@ -113,4 +118,17 @@ def disconnect(provider: str) -> dict:
             row.account_name = None
             row.last_connected_at = None
         db.commit()
-        return {"provider": provider, "status": "disconnected"}
+
+    credential_purged: bool | None = None
+    try:
+        from app.security import vault
+
+        credential_purged = vault.delete_token(provider)
+    except Exception:
+        import logging
+
+        logging.getLogger("studystream2").warning(
+            "vault purge failed for provider %s; credential may persist", provider,
+            exc_info=True,
+        )
+    return {"provider": provider, "status": "disconnected", "credential_purged": credential_purged}
